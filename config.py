@@ -6,16 +6,16 @@ def load_parameters():
     """
 
     # Input data params
-    TASK_NAME = 'EuTrans'                           # Task name.
+    TASK_NAME = 'xerox'                           # Task name.
     DATASET_NAME = TASK_NAME                        # Dataset name.
-    SRC_LAN = 'es'                                  # Language of the source text.
-    TRG_LAN = 'en'                                  # Language of the target text.
-    DATA_ROOT_PATH = 'examples/%s/' % DATASET_NAME  # Path where data is stored.
+    SRC_LAN = 'en'                                  # Language of the source text.
+    TRG_LAN = 'fr'                                  # Language of the target text.
+    DATA_ROOT_PATH ='../%s/preraw/' % DATASET_NAME  # Path where data is stored.
 
     # SRC_LAN or TRG_LAN will be added to the file names.
-    TEXT_FILES = {'train': 'training.',             # Data files.
-                  'val': 'dev.',
-                  'test': 'test.'}
+    TEXT_FILES = {'train': 'training.raw.',             # Data files.
+                  'val': 'development.raw.',
+                  'test': 'test.raw.'}
 
     GLOSSARY = None                               # Glossary location. If not None, it overwrites translations according to this glossary file
 
@@ -31,9 +31,9 @@ def load_parameters():
     METRICS = ['coco']                            # Metric used for evaluating the model.
     EVAL_ON_SETS = ['val']                        # Possible values: 'train', 'val' and 'test' (external evaluator).
     EVAL_ON_SETS_KERAS = []                       # Possible values: 'train', 'val' and 'test' (Keras' evaluator). Untested..
-    START_EVAL_ON_EPOCH = 1                       # First epoch to start the model evaluation.
-    EVAL_EACH_EPOCHS = True                       # Select whether evaluate between N epochs or N updates.
-    EVAL_EACH = 1                                 # Sets the evaluation frequency (epochs or updates).
+    START_EVAL_ON_EPOCH = 3                       # First epoch to start the model evaluation.
+    EVAL_EACH_EPOCHS = False                       # Select whether evaluate between N epochs or N updates.
+    EVAL_EACH = 3750                                 # Sets the evaluation frequency (epochs or updates).
 
     # Search parameters
     SAMPLING = 'max_likelihood'                   # Possible values: multinomial or max_likelihood (recommended).
@@ -44,10 +44,10 @@ def load_parameters():
     SEARCH_PRUNING = False                        # Apply pruning strategies to the beam search method.
                                                   # It will likely increase decoding speed, but decrease quality.
     MAXLEN_GIVEN_X = True                         # Generate translations of similar length to the source sentences.
-    MAXLEN_GIVEN_X_FACTOR = 2                     # The hypotheses will have (as maximum) the number of words of the
+    MAXLEN_GIVEN_X_FACTOR = 1.7                     # The hypotheses will have (as maximum) the number of words of the
                                                   # source sentence * LENGTH_Y_GIVEN_X_FACTOR.
     MINLEN_GIVEN_X = True                         # Generate translations of similar length to the source sentences.
-    MINLEN_GIVEN_X_FACTOR = 3                     # The hypotheses will have (as minimum) the number of words of the
+    MINLEN_GIVEN_X_FACTOR = 2                     # The hypotheses will have (as minimum) the number of words of the
                                                   # source sentence / LENGTH_Y_GIVEN_X_FACTOR.
 
     # Apply length and coverage decoding normalizations.
@@ -64,8 +64,8 @@ def load_parameters():
     # Sampling params: Show some samples during training.
     SAMPLE_ON_SETS = ['train', 'val']             # Possible values: 'train', 'val' and 'test'.
     N_SAMPLES = 5                                 # Number of samples generated.
-    START_SAMPLING_ON_EPOCH = 1                   # First epoch where to start the sampling counter.
-    SAMPLE_EACH_UPDATES = 300                     # Sampling frequency (always in #updates).
+    START_SAMPLING_ON_EPOCH = 2                   # First epoch where to start the sampling counter.
+    SAMPLE_EACH_UPDATES = 10000                     # Sampling frequency (always in #updates).
 
     # Unknown words treatment
     POS_UNK = True                                # Enable POS_UNK strategy for unknown words.
@@ -79,16 +79,14 @@ def load_parameters():
     ALIGN_FROM_RAW = True                         # Align using the full vocabulary or the short_list.
 
     # Source -- Target pkl mapping (used for heuristics 1--2). See utils/build_mapping_file.sh for further info.
-    MAPPING = DATA_ROOT_PATH + '/mapping.%s_%s.pkl' % (SRC_LAN, TRG_LAN)
-
+    MAPPING = DATA_ROOT_PATH + '/joint_bpe/mapping.%s_%s.pkl' % (SRC_LAN, TRG_LAN) 
     # Word representation params
     TOKENIZATION_METHOD = 'tokenize_none'         # Select which tokenization we'll apply.
                                                   # See Dataset class (from stager_keras_wrapper) for more info.
-    BPE_CODES_PATH = DATA_ROOT_PATH + '/training_codes.joint'    # If TOKENIZATION_METHOD = 'tokenize_bpe',
-                                                  # sets the path to the learned BPE codes.
-    DETOKENIZATION_METHOD = 'detokenize_none'     # Select which de-tokenization method we'll apply.
+    BPE_CODES_PATH = DATA_ROOT_PATH + '/joint_bpe/training_codes.joint'    # If TOKENIZATION_METHOD = 'tokenize_bpe', # sets the path to the learned BPE codes.
+    DETOKENIZATION_METHOD = 'detokenize_bpe'     # Select which de-tokenization method we'll apply.
 
-    APPLY_DETOKENIZATION = False                  # Wheter we apply a detokenization method.
+    APPLY_DETOKENIZATION = True                  # Wheter we apply a detokenization method.
 
     TOKENIZE_HYPOTHESES = True   		          # Whether we tokenize the hypotheses using the
                                                   # previously defined tokenization method.
@@ -121,10 +119,10 @@ def load_parameters():
     LOSS = 'categorical_crossentropy'
     CLASSIFIER_ACTIVATION = 'softmax'
     SAMPLE_WEIGHTS = True                         # Select whether we use a weights matrix (mask) for the data outputs
-    LABEL_SMOOTHING = 0.                          # Epsilon value for label smoothing. Only valid for 'categorical_crossentropy' loss. See arxiv.org/abs/1512.00567.
+    LABEL_SMOOTHING = 0.1                          # Epsilon value for label smoothing. Only valid for 'categorical_crossentropy' loss. See arxiv.org/abs/1512.00567.
 
     OPTIMIZER = 'Adam'                            # Optimizer. Supported optimizers: SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nadam.
-    LR = 0.001                                    # Learning rate. Recommended values - Adam 0.0002 - Adadelta 1.0.
+    LR = 0.0002                                    # Learning rate. Recommended values - Adam 0.0002 - Adadelta 1.0.
     CLIP_C = 5.                                   # During training, clip L2 norm of gradients to this value (0. means deactivated).
     CLIP_V = 0.                                   # During training, clip absolute value of gradients to this value (0. means deactivated).
     USE_TF_OPTIMIZER = True                       # Use native Tensorflow's optimizer (only for the Tensorflow backend).
@@ -132,7 +130,7 @@ def load_parameters():
     # Advanced parameters for optimizers. Default values are usually effective.
     MOMENTUM = 0.                                 # Momentum value (for SGD optimizer).
     NESTEROV_MOMENTUM = False                     # Use Nesterov momentum (for SGD optimizer).
-    EPSILON = 1e-7                                # Optimizers epsilon value.
+    EPSILON = 1e-09                                # Optimizers epsilon value.
     # Adadelta / RMSprop parameters
     RHO = 0.9                                     # Rho value (for Adadelta and RMSprop optimizers).
     # Adam-related parameters
@@ -147,15 +145,15 @@ def load_parameters():
 
     # Learning rate schedule
     LR_DECAY = None                               # Frequency (number of epochs or updates) between LR annealings. Set to None for not decay the learning rate.
-    LR_GAMMA = 0.8                                # Multiplier used for decreasing the LR.
+    LR_GAMMA = 1.0                                # Multiplier used for decreasing the LR.
     LR_REDUCE_EACH_EPOCHS = False                 # Reduce each LR_DECAY number of epochs or updates.
     LR_START_REDUCTION_ON_EPOCH = 0               # Epoch to start the reduction.
-    LR_REDUCER_TYPE = 'exponential'               # Function to reduce. 'linear' and 'exponential' implemented.
+    LR_REDUCER_TYPE = 'noam'               # Function to reduce. 'linear' and 'exponential' implemented.
                                                   # Linear reduction: new_lr = lr * LR_GAMMA
                                                   # Exponential reduction: new_lr = lr * LR_REDUCER_EXP_BASE ** (current_nb / LR_HALF_LIFE) * LR_GAMMA
                                                   # Noam reduction: new_lr = lr * min(current_nb ** LR_REDUCER_EXP_BASE, current_nb * LR_HALF_LIFE ** WARMUP_EXP)
     LR_REDUCER_EXP_BASE = -0.5                    # Base for the exponential decay.
-    LR_HALF_LIFE = 100                            # Factor/warmup steps for exponenital/noam decay.
+    LR_HALF_LIFE = 50000                            # Factor/warmup steps for exponenital/noam decay.
     WARMUP_EXP = -1.5                             # Warmup steps for noam decay.
     MIN_LR = 1e-9                                 # Minimum value allowed for the decayed LR
 
@@ -167,7 +165,7 @@ def load_parameters():
     HOMOGENEOUS_BATCHES = False                   # Use batches with homogeneous output lengths (Dangerous!!).
     JOINT_BATCHES = 4                             # When using homogeneous batches, get this number of batches to sort.
     PARALLEL_LOADERS = 1                          # Parallel data batch loaders. Somewhat untested if > 1.
-    EPOCHS_FOR_SAVE = 1                           # Number of epochs between model saves.
+    EPOCHS_FOR_SAVE = 100                           # Number of epochs between model saves.
     WRITE_VALID_SAMPLES = True                    # Write valid samples in file.
     SAVE_EACH_EVALUATION = True                   # Save each time we evaluate the model.
 
@@ -192,13 +190,13 @@ def load_parameters():
     INNER_INIT = 'orthogonal'                     # Initialization function for inner RNN matrices.
     INIT_ATT = 'glorot_uniform'                   # Initialization function for attention mechism matrices
 
-    SOURCE_TEXT_EMBEDDING_SIZE = 32              # Source language word embedding size.
+    SOURCE_TEXT_EMBEDDING_SIZE = 512              # Source language word embedding size.
     SRC_PRETRAINED_VECTORS = None                 # Path to pretrained vectors (e.g.: DATA_ROOT_PATH + '/DATA/word2vec.%s.npy' % SRC_LAN).
                                                   # Set to None if you don't want to use pretrained vectors.
                                                   # When using pretrained word embeddings. this parameter must match with the word embeddings size
     SRC_PRETRAINED_VECTORS_TRAINABLE = True       # Finetune or not the target word embedding vectors.
 
-    TARGET_TEXT_EMBEDDING_SIZE = 32               # Source language word embedding size.
+    TARGET_TEXT_EMBEDDING_SIZE = 512               # Source language word embedding size.
     TRG_PRETRAINED_VECTORS = None                 # Path to pretrained vectors. (e.g. DATA_ROOT_PATH + '/DATA/word2vec.%s.npy' % TRG_LAN)
                                                   # Set to None if you don't want to use pretrained vectors.
                                                   # When using pretrained word embeddings, the size of the pretrained word embeddings must match with the word embeddings size.
@@ -221,14 +219,14 @@ def load_parameters():
     # AttentionRNNEncoderDecoder model hyperparameters
     # # # # # # # # # # # # # # # # # # # # # # # #
     ENCODER_RNN_TYPE = 'LSTM'                     # Encoder's RNN unit type ('LSTM' and 'GRU' supported).
-    USE_CUDNN = False                              # Use CuDNN's implementation of GRU and LSTM (only for Tensorflow backend).
+    USE_CUDNN = True                              # Use CuDNN's implementation of GRU and LSTM (only for Tensorflow backend).
 
     DECODER_RNN_TYPE = 'ConditionalLSTM'          # Decoder's RNN unit type.
                                                   # ('LSTM', 'GRU', 'ConditionalLSTM' and 'ConditionalGRU' supported).
     ATTENTION_MODE = 'add'                        # Attention mode. 'add' (Bahdanau-style), 'dot' (Luong-style) or 'scaled-dot'.
 
     # Encoder configuration
-    ENCODER_HIDDEN_SIZE = 32                      # For models with RNN encoder.
+    ENCODER_HIDDEN_SIZE = 512                      # For models with RNN encoder.
     BIDIRECTIONAL_ENCODER = True                  # Use bidirectional encoder.
     BIDIRECTIONAL_DEEP_ENCODER = True             # Use bidirectional encoder in all encoding layers.
     BIDIRECTIONAL_MERGE_MODE = 'concat'           # Merge function for bidirectional layers.
@@ -239,18 +237,18 @@ def load_parameters():
     INIT_LAYERS = ['tanh']
 
     # Decoder configuration
-    DECODER_HIDDEN_SIZE = 32                      # For models with RNN decoder.
+    DECODER_HIDDEN_SIZE = 512                      # For models with RNN decoder.
     ATTENTION_SIZE = DECODER_HIDDEN_SIZE
 
     # Skip connections parameters
     SKIP_VECTORS_HIDDEN_SIZE = TARGET_TEXT_EMBEDDING_SIZE     # Hidden size.
-    ADDITIONAL_OUTPUT_MERGE_MODE = 'Add'          # Merge mode for the skip-connections (see keras.layers.merge.py).
+    ADDITIONAL_OUTPUT_MERGE_MODE = 'Add'          # Merge mode for the skip-connections (see keras.layers.merge.py).L
     SKIP_VECTORS_SHARED_ACTIVATION = 'tanh'       # Activation for the skip vectors.
     # # # # # # # # # # # # # # # # # # # # # # # #
 
     # Transformer model hyperparameters
     # # # # # # # # # # # # # # # # # # # # # # # #
-    MODEL_SIZE = 32                               # Transformer model size (d_{model} in de paper).
+    MODEL_SIZE = 512                               # Transformer model size (d_{model} in de paper).
     MULTIHEAD_ATTENTION_ACTIVATION = 'linear'     # Activation the input projections in the Multi-Head Attention blocks.
     FF_SIZE = MODEL_SIZE * 4                      # Size of the feed-forward layers of the Transformer model.
     N_HEADS = 8                                   # Number of parallel attention layers of the Transformer model.
@@ -261,12 +259,12 @@ def load_parameters():
     WEIGHT_DECAY = 1e-4                           # Regularization coefficient.
     RECURRENT_WEIGHT_DECAY = 0.                   # Regularization coefficient in recurrent layers.
 
-    DROPOUT_P = 0.                                # Percentage of units to drop (0 means no dropout).
+    DROPOUT_P = 0.1                                # Percentage of units to drop (0 means no dropout).
     RECURRENT_INPUT_DROPOUT_P = 0.                # Percentage of units to drop in input cells of recurrent layers.
     RECURRENT_DROPOUT_P = 0.                      # Percentage of units to drop in recurrent layers.
-    ATTENTION_DROPOUT_P = 0.                      # Percentage of units to drop in attention layers (0 means no dropout).
+    ATTENTION_DROPOUT_P = 0.1                      # Percentage of units to drop in attention layers (0 means no dropout).
 
-    USE_NOISE = False                              # Use gaussian noise during training.
+    USE_NOISE = True                              # Use gaussian noise during training.
     NOISE_AMOUNT = 0.01                           # Amount of noise.
 
     USE_BATCH_NORMALIZATION = True                # If True it is recommended to deactivate Dropout.
