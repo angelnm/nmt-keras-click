@@ -442,8 +442,6 @@ def interactive_simulation():
                             mouse_action_counter = 0
                         
 
-                        logger.debug(tokenized_validated_prefix)
-                        logger.debug([f"{index2word_y[w]}" for w in fixed_words_user.values()])
                         if mouse_action_counter > args.ma:
                             # 2.2.3 Get next correction by checking against the refence
                             next_correction = reference[next_correction_pos]
@@ -473,6 +471,7 @@ def interactive_simulation():
                                     del fixed_words_user[last_user_word_pos]
                                     if last_user_word_pos in unk_words_dict.keys():
                                         del unk_words_dict[last_user_word_pos]
+                            logger.debug(u'"%s" to character %d.' % (next_correction, next_correction_pos))
                         else:
                             # 2.2.3 Get next correction by checking agains the reference
                             # NO
@@ -481,7 +480,7 @@ def interactive_simulation():
                             tokenized_validated_prefix = tokenize_f(validated_prefix)
 
                             # 2.2.5 Validate words
-                            for pos, word in enumerate(tokenized_validated_prefix.split())
+                            for pos, word in enumerate(tokenized_validated_prefix.split()):
                                 fixed_words_user[pos] = word2index_y.get(word, unk_id)
                                 if word2index_y.get(word) is None:
                                     unk_words_dict[pos] = word
@@ -489,7 +488,11 @@ def interactive_simulation():
 
                             mouse_action_counter += 1
 
-                            last_user_word = tokenized_validated_prefix.split()[-1]
+                            if len(tokenized_validated_prefix.split()) == 0 or validated_prefix[-1] == u' ':
+                                last_user_word = ""
+                            else:
+                                last_user_word = tokenized_validated_prefix.split()[-1]
+                            
                             filtered_idx2word = dict((word2index_y[candidate_word], candidate_word)
                                                          for candidate_word in word2index_y if
                                                          candidate_word[:len(last_user_word)] == last_user_word)
@@ -508,10 +511,9 @@ def interactive_simulation():
                                 if filtered_idx2word.get(word) != None:    
                                     del filtered_idx2word[word]
 
-
+                            logger.debug(u'to character %d.' % ( next_correction_pos))
                         logger.debug([ w for w in list(filtered_idx2word.values())[:5]])
-                        logger.debug(u'"%s" to character %d.' % (next_correction, next_correction_pos))
-
+                     
                         # 2.2.7 Generate a hypothesis compatible with the feedback provided by the user
                         hypothesis = generate_constrained_hypothesis(beam_searcher=interactive_beam_searcher, 
                                                                     src_seq=src_seq, 
