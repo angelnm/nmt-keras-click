@@ -83,6 +83,10 @@ def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, pa
     :param unk_words: Corresponding word for unk_indices
     :return: Constrained hypothesis
     """
+    # 
+    if len(filtered_idx2word) == 0:
+        filtered_idx2word = None
+
     # Generate a constrained hypothesis
     trans_indices, costs, alphas = beam_searcher. \
         sample_beam_search_interactive(src_seq,
@@ -90,6 +94,7 @@ def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, pa
                                        max_N=args.max_n,
                                        isles=isle_indices,
                                        valid_next_words=filtered_idx2word,
+                                       excluded_words = excluded_words,
                                        idx2word=index2word_y)
 
     # Substitute possible unknown words in isles
@@ -411,6 +416,7 @@ def interactive_simulation():
                     correct_hypothesis = False
                     last_correct_pos = 0
                     mouse_action_counter = 0
+                    wrong_words = []
                     while not correct_hypothesis:
                         # 2.2.1 Empty data structures for the next sentence
                         fixed_words_user = OrderedDict()
@@ -431,16 +437,20 @@ def interactive_simulation():
                             correct_hypothesis = True
                             break
 
+                        if next_correction_pos > last_correct_pos:
+                            wrong_words = []
+                            mouse_action_counter = 0
+
                         ############################################################
                         # CARACTER A CORREGIR
                         # 2.2.3 Get next correction by checking against the reference
-                        next_mistake = hypothesis[next_correction_pos]
                         next_correction = reference[next_correction_pos]
 
                         ############################################################
                         # TOKENIZAMOS SUPONIENDO QUE HEMOS CORREGIDO EL CARACTER
                         # 2.2.4 Tokenize the prefix properly (possibly applying BPE)
                         tokenized_validated_prefix = tokenize_f(validated_prefix + next_correction)
+                        #tokenized_validated_prefix = tokenize_f(validated_prefix)
 
                         ############################################################
                         # GENERAMOS LA LISTA DE PALABRAS FIJAS Y DESCONOCIDAS
@@ -450,32 +460,49 @@ def interactive_simulation():
                             if word2index_y.get(word) is None:
                                 unk_words_dict[pos] = word
 
+                        logger.debug(tokenized_validated_prefix)
+                        logger.debug([f"{index2word_y[w]}" for w in fixed_words_user.values()])
                         if mouse_action_counter > args.ma:
-                            mouse_action_counter = 0
-                            wrong_words = []
                             ############################################################
                             # GENERAMOS LA LISTA DE PALABRAS POSIBLES EN EL ULTIMO LUGAR
                             # AUNQUE SEA UN DICCIONARIO REALMENTE ESTAMOS PASANDO UNA LISTA DE KEYS (INDEX DE LAS PALABRAS)
                             # 2.2.6 Constrain search for the last word
+                            tokenized_validated_prefix = tokenize_f(validated_prefix + next_correction)
+
                             last_user_word_pos = list(fixed_words_user.keys())[-1]
                             if next_correction != u' ':
                                 last_user_word = tokenized_validated_prefix.split()[-1]
                                 filtered_idx2word = dict((word2index_y[candidate_word], candidate_word)
                                                          for candidate_word in word2index_y if
                                                          candidate_word[:len(last_user_word)] == last_user_word)
-                                if filtered_idx2word != dict():
+                                if filtered_idx2word != dict():  
                                     del fixed_words_user[last_user_word_pos]
                                     if last_user_word_pos in unk_words_dict.keys():
                                         del unk_words_dict[last_user_word_pos]
                         else:
                             mouse_action_counter += 1
 
-                            if next_correction != u' ':
-                                last_user_word = tokenized_validated_prefix.split()[-1]
-                                wrong_words += [ word2index_y[excluded] for excluded in word2index_y if 
-                                                excluded[:len(last_user_word)] == last_user_word]
+                            last_user_word = tokenized_validated_prefix.split()[-1]
+                            filtered_idx2word = dict((word2index_y[candidate_word], candidate_word)
+                                                         for candidate_word in word2index_y if
+                                                         candidate_word[:len(last_user_word)] == last_user_word)
 
-                        logger.debug(f"Excluded words: {wrong_words}")
+                            if next_correction_pos < len(hypothesis):
+                                next_mistake = hypothesis[next_correction_pos]
+                                tokenized_wrong_prefix = tokenize_f(validated_prefix + next_mistake) 
+                                if next_mistake != u' ':
+                                    last_user_word = tokenized_wrong_prefix.split()[-1]
+                                    wrong_words += [ word2index_y[excluded] for excluded in word2index_y if 
+                                                    excluded[:len(last_user_word)] == last_user_word]
+                                else:
+                                    wrong_words += [ word2index_y[excluded] for excluded in word2index_y if
+                                                      excluded == last_user_word]
+                            for word in wrong_words:
+                                if filtered_idx2word.get(word) != None:    
+                                    del filtered_idx2word[word]
+
+
+                        logger.debug([ w for w in list(filtered_idx2word.values())[:5]])
                         logger.debug(u'"%s" to character %d.' % (next_correction, next_correction_pos))
 
                         # 2.2.7 Generate a hypothesis compatible with the feedback provided by the user
@@ -493,7 +520,7 @@ def interactive_simulation():
                                                                     mapping=mapping, 
                                                                     unk_indices=list(unk_words_dict.keys()),
                                                                     unk_words=list(unk_words_dict.values()), 
-                                                                    unk_in_isles=unks_in_isles)
+                                                                    unks_in_isles=unks_in_isles)
                         hypothesis_number += 1
                         hypothesis = u' '.join(hypothesis)  # Hypothesis is unicode
                         hypothesis = params_prediction['detokenize_f'](hypothesis) \
