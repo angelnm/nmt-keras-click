@@ -440,29 +440,23 @@ def interactive_simulation():
                         if next_correction_pos > last_correct_pos:
                             wrong_words = []
                             mouse_action_counter = 0
-
-                        ############################################################
-                        # CARACTER A CORREGIR
-                        # 2.2.3 Get next correction by checking against the reference
-                        next_correction = reference[next_correction_pos]
-
-                        ############################################################
-                        # TOKENIZAMOS SUPONIENDO QUE HEMOS CORREGIDO EL CARACTER
-                        # 2.2.4 Tokenize the prefix properly (possibly applying BPE)
-                        tokenized_validated_prefix = tokenize_f(validated_prefix + next_correction)
-                        #tokenized_validated_prefix = tokenize_f(validated_prefix)
-
-                        ############################################################
-                        # GENERAMOS LA LISTA DE PALABRAS FIJAS Y DESCONOCIDAS
-                        # 2.2.5 Validate words
-                        for pos, word in enumerate(tokenized_validated_prefix.split()):
-                            fixed_words_user[pos] = word2index_y.get(word, unk_id)
-                            if word2index_y.get(word) is None:
-                                unk_words_dict[pos] = word
+                        
 
                         logger.debug(tokenized_validated_prefix)
                         logger.debug([f"{index2word_y[w]}" for w in fixed_words_user.values()])
                         if mouse_action_counter > args.ma:
+                            # 2.2.3 Get next correction by checking against the refence
+                            next_correction = reference[next_correction_pos]
+
+                            # 2.2.4 Tokenize the prefix properly
+                            tokenized_validated_prefix = tokenize_f(validated_prefix + next_correction)
+
+                            # 2.2.5. Validate words
+                            for pos, word in enumerate(tokenized_validated_prefix.split()):
+                                fixed_words_user[pos] = word2index_y.get(word, unk_id)
+                                if word2index_y.get(word) is None:
+                                    unk_words_dict[pos] = word
+
                             ############################################################
                             # GENERAMOS LA LISTA DE PALABRAS POSIBLES EN EL ULTIMO LUGAR
                             # AUNQUE SEA UN DICCIONARIO REALMENTE ESTAMOS PASANDO UNA LISTA DE KEYS (INDEX DE LAS PALABRAS)
@@ -480,6 +474,19 @@ def interactive_simulation():
                                     if last_user_word_pos in unk_words_dict.keys():
                                         del unk_words_dict[last_user_word_pos]
                         else:
+                            # 2.2.3 Get next correction by checking agains the reference
+                            # NO
+
+                            # 2.2.4. Tokenize the prefix properly
+                            tokenized_validated_prefix = tokenize_f(validated_prefix)
+
+                            # 2.2.5 Validate words
+                            for pos, word in enumerate(tokenized_validated_prefix.split())
+                                fixed_words_user[pos] = word2index_y.get(word, unk_id)
+                                if word2index_y.get(word) is None:
+                                    unk_words_dict[pos] = word
+
+
                             mouse_action_counter += 1
 
                             last_user_word = tokenized_validated_prefix.split()[-1]
