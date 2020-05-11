@@ -543,6 +543,7 @@ def interactive_simulation():
                                 break
 
                             elif hypothesis[checked_index_h] != reference[checked_index_r] and len(wrong_words) > args.ma:
+                                wrong_words = []
                                 errors_sentence += 1
                                 # El raton ya esta en el sitio
                                 #mouse_actions_sentence +=1
@@ -597,7 +598,7 @@ def interactive_simulation():
                                         fixed_words_user[checked_index_h + BPE_offset + n_word] = new_word_indices[n_word]
                                     else:
                                         wrong_words.append(excluded_words_indices[n_word])
-                      
+                                 
                                 logger.debug("Excluded words: " + str([index2word_y[w] for w in wrong_words]))
                                 # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECCION Y SALIMOS DEL BUCLE
                                 correction_made = True
