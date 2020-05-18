@@ -441,7 +441,8 @@ def interactive_simulation():
                     fixed_words_user = OrderedDict()  # {pos: word}
                     old_isles = []
                     BPE_offset = 0
-                    wrong_words = []
+                    wrong_words = dict()
+                    wrong_words_counter = 0
 
                     while checked_index_r < len(reference):
                         validated_prefix = []
@@ -542,8 +543,9 @@ def interactive_simulation():
                                 last_checked_index = checked_index_h
                                 break
 
-                            elif hypothesis[checked_index_h] != reference[checked_index_r] and len(wrong_words) > args.ma:
-                                wrong_words = []
+                            elif hypothesis[checked_index_h] != reference[checked_index_r] and wrong_words_counter > args.ma:
+                                wrong_words = dict()
+                                wrong_words_counter = 0
                                 errors_sentence += 1
                                 # El raton ya esta en el sitio
                                 #mouse_actions_sentence +=1
@@ -589,15 +591,23 @@ def interactive_simulation():
                                	    hypo_words = tokenize_f(hypothesis[checked_index_h].encode('utf-8')).split()
                                 else:
                                     hypo_words = tokenize_f(str(hypothesis[checked_index_h].encode('utf-8'), 'utf-8')).split()
-                                excluded_words_indices = [word2index_y.get(word, unk_id) for word in hypo_words]
-                                new_word_indices = [word2index_y.get(word, unk_id) for word in new_words]
+                                
+                                hypo_words_indices = [word2index_y.get(word, unk_id) for word in hypo_words]
 
                                 # SE ANYADEN OTRA COSAS EN OTRO LUGAR
-                                for n_word, new_subword in enumerate(hypo_words):
-                                    if n_word < len(new_word_indices) and new_word_indices[n_word] == excluded_words_indices[n_word]:
-                                        fixed_words_user[checked_index_h + BPE_offset + n_word] = new_word_indices[n_word]
-                                    else:
-                                        wrong_words.append(excluded_words_indices[n_word])
+                                last_word = -1
+                                for n_word, new_subword in enumerate(hypo_words_indices):
+                                    
+                                    pos = checked_index_h + BPE_offset + n_word
+                                    if wrong_words.get(pos) == None:
+                                        wrong_words[pos] = dict()
+
+                                    ww_list = wrong_words.get(pos)
+                                    if ww_list.get(last_word) == None:
+                                        ww_list[last_word] = []
+                                    ww_list[last_word].append(new_subword)
+                                    
+                                    last_word = new_subword
                                  
                                 logger.debug("Excluded words: " + str([index2word_y[w] for w in wrong_words]))
                                 # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECCION Y SALIMOS DEL BUCLE
@@ -609,7 +619,8 @@ def interactive_simulation():
                             # LAS PALABRAS DE HIPOTESIS Y REFERENCIA COMPARADAS CON IGUALES
                             else:
 
-                                wrong_words = []
+                                wrong_words = dict()
+                                wrong_words_counter = 0
 
                                 if version_info[0] < 3:  # Execute different code for python 2 or 3
                                     correct_words_h = tokenize_f(hypothesis[checked_index_h].encode('utf-8')).split()  # if params_prediction['apply_tokenization'] else [reference[checked_index_h]]
