@@ -65,7 +65,7 @@ def parse_args():
 
     return parser.parse_args()
 
-def fill_valid_next_words(pos, word2index_y, last_word, wrong_char = None):
+def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_char = None):
     valid_next_words = dict()
     find_ending = False
 
@@ -540,11 +540,11 @@ def interactive_simulation():
                                     fixed_words_user[pos] = word2index_y.get(word, unk_id)
                                     if word2index_y.get(word) is None:
                                         unk_words_dict[pos] = word
-                                    pos += 
+                                    pos += 1 
 
 
                             # Anyadimos como posibles palabras todas aquellas que cumplen el prefijo y no tienen la otra letra
-                            filtered_idx2word = fill_valid_next_words(pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_char = hypothesis[next_correction_pos])
+                            filtered_idx2word = fill_valid_next_words(pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_char = hypothesis[next_correction_pos], bpe_separator=bpe_separator)
                             
                             """
                             someone = False
