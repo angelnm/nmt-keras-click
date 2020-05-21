@@ -65,7 +65,7 @@ def parse_args():
 
     return parser.parse_args()
 
-def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, valid_next_words = dict(), wrong_char = None):
+def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, valid_next_words = dict(), wrong_chars = []):
     find_ending = False
 
     list_cor_hyp = [[-1, pos, ""]]
@@ -93,10 +93,20 @@ def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, valid_ne
             # Si la palabra formada actual ya es mas larga que la objetivo
             if len(word) >= len(last_word):
                 if word[:len(last_word)] == last_word:
-                    if len(word) == len(last_word) or word[len(last_word)] != wrong_char:    
+                    if len(word) == len(last_word): 
                         w = word2index_y[w]
                         valid_list[c_last].append(w)
                         find_ending = True
+                    else: 
+                        correct = True
+                        for c in wrong_chars:
+                            if word[len(last_word)] == c:
+                                correct = False
+                                break
+                        if correct:
+                            w = word2index_y[w]
+                            valid_list[c_last].append(w)
+                            find_ending = True
             # En caso contrario nos tocara continuar
             else:
                 if last_word[:len(word)] == word:
@@ -460,6 +470,7 @@ def interactive_simulation():
                         fixed_words_user = OrderedDict()
                         unk_words_dict = OrderedDict()
                         filtered_idx2word = dict()
+                        excluded_chars = []
                         isle_indices = []
                         unks_in_isles = []
 
@@ -478,6 +489,7 @@ def interactive_simulation():
                         if next_correction_pos > last_correct_pos:
                             filtered_idx2word = dict()
                             mouse_action_counter = 0
+                            excluded_chars = []
                         
 
                         if mouse_action_counter > args.ma:
@@ -515,7 +527,8 @@ def interactive_simulation():
 
                             # 2.2.4 Tokenize the prefix properly
                             # Separamos el string validado en tokens separados por espacios
-                            validated_prefix +=  reference[next_correction_pos]
+                            next_correction = reference[next_correction_pos]
+                            validated_prefix +=  next_correction
                             tokenized_validated_prefix = validated_prefix.split()
 
                             if len(tokenized_validated_prefix) > 0 and hypothesis[next_correction_pos -1] != ' ': 
@@ -572,7 +585,8 @@ def interactive_simulation():
 
 
                             # Anyadimos como posibles palabras todas aquellas que cumplen el prefijo y no tienen la otra letra
-                            filtered_idx2word = fill_valid_next_words(valid_next_words = filtered_idx2word, pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_char = hypothesis[next_correction_pos], bpe_separator=bpe_separator)
+                            excluded_chars.append(hypothesis[next_correction_pos])
+                            filtered_idx2word = fill_valid_next_words(valid_next_words = filtered_idx2word, pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_char = excluded_chars, bpe_separator=bpe_separator)
                             
                             """
                             someone = False
