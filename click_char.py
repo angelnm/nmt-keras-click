@@ -65,6 +65,7 @@ def parse_args():
 
     return parser.parse_args()
 
+"""
 def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, wrong_chars = []):
     valid_next_words = dict()
     find_ending = False
@@ -83,8 +84,6 @@ def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, wrong_ch
         c_pos = element[1]
         c_pre = element[2]
 
-        if c_pos == 100:
-            print(element)
         # Comprobamos si ya existe el diccionario de la posicion actual
         if valid_next_words.get(c_pos) == None:
             valid_next_words[c_pos] = dict()
@@ -121,9 +120,70 @@ def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, wrong_ch
             # En caso contrario nos tocara continuar
             elif not last:
                 if last_word[:len(word)] == word:
+                    #Anyadimos el elemento
                     w = word2index_y[w]
                     valid_list[c_last].append(w)
                     list_cor_hyp.append([w, c_pos+1, word])
+
+    if not find_ending:
+        return None
+    else:
+        return valid_next_words
+"""
+def fill_valid_next_word(pos, word2index_y, last_word, bpe_separator, wrong_chars=[]):
+    find_ending = False
+    valid_next_words = dict()
+
+    if valid_next_words.get(pos) == None:
+        valid_next_words[pos] = dict()
+
+    plus_len = 0
+    for c in wrong_chars:
+        if c == u' ':
+            plus_len = 1
+
+    list_cor_hyp = [[valid_next_words[pos], ""]]
+    while len(list_cor_hyp) != 0:
+        # Cogemos el ultimo elemento de la lista
+        element = list_cor_hyp.pop()
+        # Lo separamos en sus tres valores
+        c_father = element[0]
+        c_pre = element[1]
+
+
+        # Comprobamos que palabras pueden seguir el prefijo que hemos conseguido hasta ahora
+        for w in word2index_y:
+            #Formamos la palabra entera PREFIJO + ACTUAL
+            last = True
+            if w[-2:] == bpe_separator: 
+                word = c_pre +  w[:-2]
+                last = False
+            else:
+                word = c_pre + w
+            # Si la palabra formada actual ya es mas larga que la objetivo
+            if len(word) >= len(last_word) + plus_len:
+                if word[:len(last_word)] == last_word:
+                    if len(word) == len(last_word) + plus_len: 
+                        w = word2index_y[w]
+                        c_father[w] = dict()
+                        find_ending = True
+                    else: 
+                        correct = True
+                        for c in wrong_chars:
+                            if word[len(last_word)] == c:
+                                correct = False
+                                break
+                        if correct:
+                            w = word2index_y[w]
+                            c_father[w] = dict()
+                            find_ending = True
+            # En caso contrario nos tocara continuar
+            elif not last:
+                if last_word[:len(word)] == word:
+                    #Anyadimos el elemento
+                    w = word2index_y[w]
+                    c_father[w] = dict()
+                    list_cor_hyp.append([c_father[w], word])
 
     if not find_ending:
         return None
