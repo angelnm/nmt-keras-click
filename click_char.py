@@ -65,7 +65,7 @@ def parse_args():
 
     return parser.parse_args()
 
-def fill_valid_next_words(valid_next_words = dict(), pos, word2index_y, last_word, bpe_separator, wrong_char = None):
+def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, valid_next_words = dict(), wrong_char = None):
     find_ending = False
 
     list_cor_hyp = [[-1, pos, ""]]
@@ -110,7 +110,7 @@ def fill_valid_next_words(valid_next_words = dict(), pos, word2index_y, last_wor
         return valid_next_words
 
 def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, params, args, isle_indices, filtered_idx2word,
-                                    excluded_words, index2word_y, sources, heuristic, mapping, unk_indices, unk_words, unks_in_isles):
+                                     index2word_y, sources, heuristic, mapping, unk_indices, unk_words, unks_in_isles):
     """
     Generates and decodes a user-constrained hypothesis given a source sentence and the user feedback signals.
     :param src_seq: Sequence of indices of the source sentence to translate.
@@ -134,7 +134,6 @@ def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, pa
                                        max_N=args.max_n,
                                        isles=isle_indices,
                                        valid_next_words=filtered_idx2word,
-                                       excluded_words = excluded_words,
                                        idx2word=index2word_y)
 
     # Substitute possible unknown words in isles
