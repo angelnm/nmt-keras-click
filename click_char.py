@@ -65,6 +65,50 @@ def parse_args():
 
     return parser.parse_args()
 
+def fill_valid_next_words(pos, word2index_y, last_word, wrong_char = None):
+    valid_next_words = dict()
+    find_ending = False
+
+    list_cor_hyp = [[-1, pos, ""]]
+    while len(list_cor_hyp) != 0:
+        #Cogemos el ultimo elemento de la lista
+        element = list_cor_hyp.pop()
+        # Lo separamos en sus tres valores
+        c_last = element[0]
+        c_pos = element[1]
+        c_pre = element[2]
+        # Comprobamos si ya existe el diccionario de la posicion actual
+        if valid_next_words.get(c_pos) == None:
+            valid_next_words[c_pos] = dict()
+        valid_list = valid_next_words.get(c_pos)
+        # Comprobamos si ya existe la lista de palabras para el prefijo pasado
+        if valid_list.get(c_last) == None:
+            valid_list[c_last] = []
+        # Comprobamos que palabras pueden seguir el prefijo que hemos conseguido hasta ahora
+        for w in word2index_y:
+            # Formamos la palabra entera PREFIJO + ACTUAL
+            if w[-2:] == bpe_separator: 
+                word = c_pre +  w[:-2]
+            else:
+                word = c_pre + w
+            # Si la palabra formada actual ya es mas larga que la objetivo
+            if len(word) >= len(last_word):
+                if word[:len(last_word)] == last_word:
+                    if len(word) == len(last_word) or word[len(last_word)] != wrong_char:    
+                        w = word2index_y[w]
+                        valid_list[c_last].append(w)
+                        find_ending = True
+            # En caso contrario nos tocara continuar
+            else:
+                if last_word[:len(word)] == word:
+                    w = word2index_y[w]
+                    valid_list[c_last].append(w)
+                    list_cor_hyp.append([w, c_pos+1, word])
+
+    if not find_ending:
+        return None
+    else:
+        return valid_next_words
 
 def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, params, args, isle_indices, filtered_idx2word,
                                     excluded_words, index2word_y, sources, heuristic, mapping, unk_indices, unk_words, unks_in_isles):
@@ -83,9 +127,6 @@ def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, pa
     :param unk_words: Corresponding word for unk_indices
     :return: Constrained hypothesis
     """
-    # 
-    if len(filtered_idx2word) == 0:
-        filtered_idx2word = None
 
     # Generate a constrained hypothesis
     trans_indices, costs, alphas = beam_searcher. \
@@ -499,12 +540,14 @@ def interactive_simulation():
                                     fixed_words_user[pos] = word2index_y.get(word, unk_id)
                                     if word2index_y.get(word) is None:
                                         unk_words_dict[pos] = word
-                                    pos += 1
-
-                            # Anyadir las posibles siguientes palabras
+                                    pos += 
 
 
-                            # Anyadir las palabras siguientes excluidas
+                            # Anyadimos como posibles palabras todas aquellas que cumplen el prefijo y no tienen la otra letra
+                            filtered_idx2word = fill_valid_next_words(pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_char = hypothesis[next_correction_pos])
+                            
+                            """
+                            someone = False
                             wrong_char = hypothesis[next_correction_pos]
                             list_cor_hyp = [[-1, pos, ""]]
                             while len(list_cor_hyp) != 0:
@@ -533,23 +576,30 @@ def interactive_simulation():
                                             if len(word) == len(last_word) or word[len(last_word)] != wrong_char:    
                                                 w = word2index_y[w]
                                                 ww_list[c_last].append(w)
+                                                someone = True
                                     else:
                                         if last_word[:len(word)] == word:
                                             w = word2index_y[w]
                                             ww_list[c_last].append(w)
                                             list_cor_hyp.append([w, c_pos+1, word])
 
-                            for pos in wrong_words.keys():
+                            if not someone:
+                                fixed_words_user[pos] = word2index_y.get(last_word, unk_id)
+                                if word2index_y.get(last_word) is None:
+                                        unk_words_dict[pos] = last_word
+                            """
+
+
+                            for pos in filtered_idx2word.keys():
                                 logger.debug(f"Wrong pos: {pos}")
-                                for pre in wrong_words[pos].keys():
-                                    if len(wrong_words[pos][pre]) > 5:
-                                        logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in wrong_words[pos][pre][:5]]))
+                                for pre in filtered_idx2word[pos].keys():
+                                    if len(filtered_idx2word[pos][pre]) > 5:
+                                        logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in filtered_idx2word[pos][pre][:5]]))
                                     else:
-                                        logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in wrong_words[pos][pre]]))
+                                        logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in filtered_idx2word[pos][pre]]))
 
                             logger.debug(u'to character %d.' % ( next_correction_pos))  
-                            logger.debug([index2word_y[w] for w in fixed_words_user.values()])
-                            logger.debug([ w for w in list(filtered_idx2word.values())[:5]])                    
+                            logger.debug([index2word_y[w] for w in fixed_words_user.values()])                 
 
                         # 2.2.7 Generate a hypothesis compatible with the feedback provided by the user
                         hypothesis = generate_constrained_hypothesis(beam_searcher=interactive_beam_searcher, 
