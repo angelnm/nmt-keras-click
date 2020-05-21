@@ -416,7 +416,7 @@ def interactive_simulation():
                     correct_hypothesis = False
                     last_correct_pos = 0
                     mouse_action_counter = 0
-                    wrong_words = []
+                    wrong_words = dict()
                     while not correct_hypothesis:
                         # 2.2.1 Empty data structures for the next sentence
                         fixed_words_user = OrderedDict()
@@ -438,11 +438,13 @@ def interactive_simulation():
                             break
 
                         if next_correction_pos > last_correct_pos:
-                            wrong_words = []
+                            wrong_words = dict()
                             mouse_action_counter = 0
                         
 
                         if mouse_action_counter > args.ma:
+                            wrong_words = dict()
+
                             # 2.2.3 Get next correction by checking against the refence
                             next_correction = reference[next_correction_pos]
 
@@ -473,47 +475,82 @@ def interactive_simulation():
                                         del unk_words_dict[last_user_word_pos]
                             logger.debug(u'"%s" to character %d.' % (next_correction, next_correction_pos))
                         else:
-                            # 2.2.3 Get next correction by checking agains the reference
-                            # NO
-
-                            # 2.2.4. Tokenize the prefix properly
-                            tokenized_validated_prefix = tokenize_f(validated_prefix)
-
-                            # 2.2.5 Validate words
-                            for pos, word in enumerate(tokenized_validated_prefix.split()):
-                                fixed_words_user[pos] = word2index_y.get(word, unk_id)
-                                if word2index_y.get(word) is None:
-                                    unk_words_dict[pos] = word
-
-
+                            
                             mouse_action_counter += 1
 
-                            if len(tokenized_validated_prefix.split()) == 0 or validated_prefix[-1] == u' ':
-                                last_user_word = ""
+
+                            # 2.2.4 Tokenize the prefix properly
+                            # Separamos el string validado en tokens separados por espacios
+                            tokenized_validated_prefix = validated_prefix.split()
+
+                            if len(tokenized_validated_prefix) > 0 and hypothesis[next_correction_pos -1] != ' ': 
+                                last_word = tokenized_validated_prefix[-1]
+                                tokenized_validated_prefix = tokenized_validated_prefix[:-1]
                             else:
-                                last_user_word = tokenized_validated_prefix.split()[-1]
-                            
-                            filtered_idx2word = dict((word2index_y[candidate_word], candidate_word)
-                                                         for candidate_word in word2index_y if
-                                                         candidate_word[:len(last_user_word)] == last_user_word)
+                                last_word = ""
 
-                            if next_correction_pos < len(hypothesis):
-                                next_mistake = hypothesis[next_correction_pos]
-                                tokenized_wrong_prefix = tokenize_f(validated_prefix + next_mistake) 
-                                if next_mistake != u' ':
-                                    last_user_word = tokenized_wrong_prefix.split()[-1]
-                                    wrong_words += [ word2index_y[excluded] for excluded in word2index_y if 
-                                                    excluded[:len(last_user_word)] == last_user_word]
-                                else:
-                                    wrong_words += [ word2index_y[excluded] for excluded in word2index_y if
-                                                      excluded == last_user_word]
-                            for word in wrong_words:
-                                if filtered_idx2word.get(word) != None:    
-                                    del filtered_idx2word[word]
+                            # 2.2.5 Validate words
+                            # Anyadimos todas las palabras menos la ultima a las palabras fijas
+                            pos = 0
+                            for fixed_word in tokenized_validated_prefix: 
+                                new_words = tokenize_f(fixed_word).split()
 
-                            logger.debug(u'to character %d.' % ( next_correction_pos))
-                        logger.debug([ w for w in list(filtered_idx2word.values())[:5]])
-                     
+                                for word in new_words:
+                                    fixed_words_user[pos] = word2index_y.get(word, unk_id)
+                                    if word2index_y.get(word) is None:
+                                        unk_words_dict[pos] = word
+                                    pos += 1
+
+                            # Anyadir las posibles siguientes palabras
+
+
+                            # Anyadir las palabras siguientes excluidas
+                            wrong_char = hypothesis[next_correction_pos]
+                            list_cor_hyp = [[-1, pos, ""]]
+                            while len(list_cor_hyp) != 0:
+                                element = list_cor_hyp.pop()
+
+                                c_last = element[0]
+                                c_pos = element[1]
+                                c_pre = element[2]
+
+                                if wrong_words.get(c_pos) == None:
+                                    wrong_words[c_pos] = dict()
+                                ww_list = wrong_words.get(c_pos)
+
+                                if ww_list.get(c_last) == None:
+                                    ww_list[c_last] = []
+
+
+                                for w in word2index_y:
+                                    if w[-2:] == bpe_separator: 
+                                        word = c_pre +  w[:-2]
+                                    else:
+                                        word = c_pre + w
+
+                                    if len(word) >= len(last_word):
+                                        if word[:len(last_word)] == last_word:
+                                            if len(word) == len(last_word) or word[len(last_word)] != wrong_char:    
+                                                w = word2index_y[w]
+                                                ww_list[c_last].append(w)
+                                    else:
+                                        if last_word[:len(word)] == word:
+                                            w = word2index_y[w]
+                                            ww_list[c_last].append(w)
+                                            list_cor_hyp.append([w, c_pos+1, word])
+
+                            for pos in wrong_words.keys():
+                                logger.debug(f"Wrong pos: {pos}")
+                                for pre in wrong_words[pos].keys():
+                                    if len(wrong_words[pos][pre]) > 5:
+                                        logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in wrong_words[pos][pre][:5]]))
+                                    else:
+                                        logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in wrong_words[pos][pre]]))
+
+                            logger.debug(u'to character %d.' % ( next_correction_pos))  
+                            logger.debug([index2word_y[w] for w in fixed_words_user.values()])
+                            logger.debug([ w for w in list(filtered_idx2word.values())[:5]])                    
+
                         # 2.2.7 Generate a hypothesis compatible with the feedback provided by the user
                         hypothesis = generate_constrained_hypothesis(beam_searcher=interactive_beam_searcher, 
                                                                     src_seq=src_seq, 
@@ -629,11 +666,6 @@ def interactive_simulation():
                     logger.info(u"Current MAR_c is: %f" % (float(total_mouse_actions) / total_chars))
                     logger.info(u"Current KSMR is: %f" % (float(total_errors + total_mouse_actions) / total_chars))
         # 6. Final!
-        # 6.1 Log some information
-        print (u"Total number of errors:", total_errors)
-        print (u"Total number selections", total_mouse_actions)
-        print (u"WSR: %f" % (float(total_errors) / total_words))
-        print (u"MAR: %f" % (float(total_mouse_actions) / total_words))
         print (u"MAR_c: %f" % (float(total_mouse_actions) / total_chars))
         print (u"KSMR: %f" % (float(total_errors + total_mouse_actions) / total_chars))
         # 6.2 Close open files

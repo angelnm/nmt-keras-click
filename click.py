@@ -505,7 +505,7 @@ def interactive_simulation():
                                 new_words = tokenize_f(new_word.encode('utf-8')).split()  # if params_prediction['apply_tokenization'] else [new_word]
                             else:
                                 new_words = tokenize_f(str(new_word.encode('utf-8'), 'utf-8')).split()  # if params_prediction['apply_tokenization'] else [new_word]
-                            
+                                       
                             if new_words[-1][-2:] == bpe_separator:  # Remove potential subwords in user feedback.
                                 new_words[-1] = new_words[-1][:-2]
 
@@ -578,6 +578,7 @@ def interactive_simulation():
                                 # ANYADIMOS 1 ERROR / 1 ERROR QUE HA TENIDO QUE SER CORREGIDO
                                 #errors_sentence += 1
                                 mouse_actions_sentence += 1
+                                wrong_words_counter += 1    
 
                                 if checked_index_h - last_checked_index > 1:
                                     # Este Mouse Action seria el explicito, sin coste
@@ -608,17 +609,21 @@ def interactive_simulation():
                                     ww_list[last_word].append(new_subword)
                                     
                                     last_word = new_subword
-                                 
-                                logger.debug("Excluded words: " + str([index2word_y[w] for w in wrong_words]))
+                                
+                                for pos in wrong_words.keys():
+                                    logger.debug("Wrong pos: " + str(pos))
+                                    for pre in wrong_words[pos].values():
+                                        logger.debug("Excluded words: " + str([index2word_y[w] for w in pre]))
+
                                 # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECCION Y SALIMOS DEL BUCLE
                                 correction_made = True
-                                logger.debug(u'"%s" in position %d' % (hypothesis[checked_index_h], checked_index_h))
+                                logger.debug(u'Wrong "%s" in position %d' % (hypothesis[checked_index_h], checked_index_h))
                                 last_checked_index = checked_index_h
                                 break
                             ###############################################################################
                             # LAS PALABRAS DE HIPOTESIS Y REFERENCIA COMPARADAS CON IGUALES
                             else:
-
+                                
                                 wrong_words = dict()
                                 wrong_words_counter = 0
 
