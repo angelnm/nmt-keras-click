@@ -65,8 +65,7 @@ def parse_args():
 
     return parser.parse_args()
 
-def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_char = None):
-    valid_next_words = dict()
+def fill_valid_next_words(valid_next_words = dict(), pos, word2index_y, last_word, bpe_separator, wrong_char = None):
     find_ending = False
 
     list_cor_hyp = [[-1, pos, ""]]
@@ -457,7 +456,6 @@ def interactive_simulation():
                     correct_hypothesis = False
                     last_correct_pos = 0
                     mouse_action_counter = 0
-                    wrong_words = dict()
                     while not correct_hypothesis:
                         # 2.2.1 Empty data structures for the next sentence
                         fixed_words_user = OrderedDict()
@@ -479,16 +477,16 @@ def interactive_simulation():
                             break
 
                         if next_correction_pos > last_correct_pos:
-                            wrong_words = dict()
+                            filtered_idx2word = dict()
                             mouse_action_counter = 0
                         
 
                         if mouse_action_counter > args.ma:
-                            wrong_words = dict()
-
+                            """
                             # 2.2.3 Get next correction by checking against the refence
                             next_correction = reference[next_correction_pos]
 
+                            
                             # 2.2.4 Tokenize the prefix properly
                             tokenized_validated_prefix = tokenize_f(validated_prefix + next_correction)
 
@@ -514,6 +512,37 @@ def interactive_simulation():
                                     del fixed_words_user[last_user_word_pos]
                                     if last_user_word_pos in unk_words_dict.keys():
                                         del unk_words_dict[last_user_word_pos]
+                            """
+
+                            # 2.2.4 Tokenize the prefix properly
+                            # Separamos el string validado en tokens separados por espacios
+                            validated_prefix +=  reference[next_correction_pos]
+                            tokenized_validated_prefix = validated_prefix.split()
+
+                            if len(tokenized_validated_prefix) > 0 and hypothesis[next_correction_pos -1] != ' ': 
+                                last_word = tokenized_validated_prefix[-1]
+                                tokenized_validated_prefix = tokenized_validated_prefix[:-1]
+                            else:
+                                last_word = ""
+
+                            # 2.2.5 Validate words
+                            # Anyadimos todas las palabras menos la ultima a las palabras fijas
+                            pos = 0
+                            for fixed_word in tokenized_validated_prefix: 
+                                new_words = tokenize_f(fixed_word).split()
+
+                                for word in new_words:
+                                    fixed_words_user[pos] = word2index_y.get(word, unk_id)
+                                    if word2index_y.get(word) is None:
+                                        unk_words_dict[pos] = word
+                                    pos += 1 
+
+
+                            filtered_idx2word = fill_valid_next_words(valid_next_words = filtered_idx2word, pos=pos, word2index_y = word2index_y, last_word = last_word, bpe_separator=bpe_separator)
+                            if filtered_idx2word == None:
+                                fixed_words_user[pos] = word2index_y.get(unk_id)
+                                nk_words_dict[pos] = last_word
+
                             logger.debug(u'"%s" to character %d.' % (next_correction, next_correction_pos))
                         else:
                             
@@ -544,7 +573,7 @@ def interactive_simulation():
 
 
                             # Anyadimos como posibles palabras todas aquellas que cumplen el prefijo y no tienen la otra letra
-                            filtered_idx2word = fill_valid_next_words(pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_char = hypothesis[next_correction_pos], bpe_separator=bpe_separator)
+                            filtered_idx2word = fill_valid_next_words(valid_next_words = filtered_idx2word, pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_char = hypothesis[next_correction_pos], bpe_separator=bpe_separator)
                             
                             """
                             someone = False
@@ -609,7 +638,6 @@ def interactive_simulation():
                                                                     args=args,
                                                                     isle_indices=isle_indices, 
                                                                     filtered_idx2word=filtered_idx2word,
-                                                                    excluded_words=wrong_words,
                                                                     index2word_y=index2word_y, 
                                                                     sources=sources, 
                                                                     heuristic=heuristic,
