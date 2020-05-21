@@ -65,8 +65,14 @@ def parse_args():
 
     return parser.parse_args()
 
-def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, valid_next_words = dict(), wrong_chars = []):
+def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, wrong_chars = []):
+    valid_next_words = dict()
     find_ending = False
+
+    plus_len = 0
+    for c in wrong_chars:
+        if c == u' ':
+            plus_len = 1
 
     list_cor_hyp = [[-1, pos, ""]]
     while len(list_cor_hyp) != 0:
@@ -76,6 +82,9 @@ def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, valid_ne
         c_last = element[0]
         c_pos = element[1]
         c_pre = element[2]
+
+        if c_pos == 100:
+            print(element)
         # Comprobamos si ya existe el diccionario de la posicion actual
         if valid_next_words.get(c_pos) == None:
             valid_next_words[c_pos] = dict()
@@ -86,14 +95,16 @@ def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, valid_ne
         # Comprobamos que palabras pueden seguir el prefijo que hemos conseguido hasta ahora
         for w in word2index_y:
             # Formamos la palabra entera PREFIJO + ACTUAL
+            last = True
             if w[-2:] == bpe_separator: 
                 word = c_pre +  w[:-2]
+                last = False
             else:
                 word = c_pre + w
             # Si la palabra formada actual ya es mas larga que la objetivo
-            if len(word) >= len(last_word):
+            if len(word) >= len(last_word) + plus_len:
                 if word[:len(last_word)] == last_word:
-                    if len(word) == len(last_word): 
+                    if len(word) == len(last_word) + plus_len: 
                         w = word2index_y[w]
                         valid_list[c_last].append(w)
                         find_ending = True
@@ -108,7 +119,7 @@ def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, valid_ne
                             valid_list[c_last].append(w)
                             find_ending = True
             # En caso contrario nos tocara continuar
-            else:
+            elif not last:
                 if last_word[:len(word)] == word:
                     w = word2index_y[w]
                     valid_list[c_last].append(w)
@@ -465,12 +476,12 @@ def interactive_simulation():
                     correct_hypothesis = False
                     last_correct_pos = 0
                     mouse_action_counter = 0
+                    excluded_chars = []
                     while not correct_hypothesis:
                         # 2.2.1 Empty data structures for the next sentence
                         fixed_words_user = OrderedDict()
                         unk_words_dict = OrderedDict()
                         filtered_idx2word = dict()
-                        excluded_chars = []
                         isle_indices = []
                         unks_in_isles = []
 
@@ -548,12 +559,16 @@ def interactive_simulation():
                                     if word2index_y.get(word) is None:
                                         unk_words_dict[pos] = word
                                     pos += 1 
-
-
-                            filtered_idx2word = fill_valid_next_words(valid_next_words = filtered_idx2word, pos=pos, word2index_y = word2index_y, last_word = last_word, bpe_separator=bpe_separator)
-                            if filtered_idx2word == None:
-                                fixed_words_user[pos] = word2index_y.get(unk_id)
-                                nk_words_dict[pos] = last_word
+                            
+                            if next_correction != u' ':
+                                filtered_idx2word = fill_valid_next_words( pos=pos, word2index_y = word2index_y, last_word = last_word, bpe_separator=bpe_separator)
+                                if filtered_idx2word == None:
+                                    fixed_words_user[pos] = word2index_y.get(unk_id)
+                                    nk_words_dict[pos] = last_word
+                            else:
+                                fixed_words_user[pos] = word2index_y.get(last_word, unk_id)
+                                if word2index_y.get(last_word) is None:
+                                    unk_words_dict[pos] = last_word
 
                             logger.debug(u'"%s" to character %d.' % (next_correction, next_correction_pos))
                         else:
@@ -585,9 +600,13 @@ def interactive_simulation():
 
 
                             # Anyadimos como posibles palabras todas aquellas que cumplen el prefijo y no tienen la otra letra
-                            excluded_chars.append(hypothesis[next_correction_pos])
-                            filtered_idx2word = fill_valid_next_words(valid_next_words = filtered_idx2word, pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_char = excluded_chars, bpe_separator=bpe_separator)
-                            
+                            if next_correction_pos < len(hypothesis):
+                                excluded_chars.append(hypothesis[next_correction_pos])
+                                print(excluded_chars)
+                                filtered_idx2word = fill_valid_next_words(pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_chars = excluded_chars, bpe_separator=bpe_separator)
+                            else:
+                                # Al enviar un valor diferente de None el tamanyo minimo de la frase aumentara en 1
+                                filtered_idx2word = dict()
                             """
                             someone = False
                             wrong_char = hypothesis[next_correction_pos]
