@@ -141,13 +141,14 @@ def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_cha
             plus_len = 1
 
     prefix[""] = valid_next_words[pos]
-    list_cor_hyp = [[valid_next_words[pos], ""]]
+    list_cor_hyp = [[valid_next_words[pos], "", -1]]
     while len(list_cor_hyp) != 0:
         # Cogemos el ultimo elemento de la lista
         element = list_cor_hyp.pop()
         # Lo separamos en sus tres valores
         c_father = element[0]
         c_pre = element[1]
+        c_word = element[2]
 
 
         # Comprobamos que palabras pueden seguir el prefijo que hemos conseguido hasta ahora
@@ -189,7 +190,10 @@ def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_cha
                         new_dict = dict()
                         prefix[word] = new_dict
                         c_father[w] = new_dict
-                        list_cor_hyp.append([new_dict, word])
+                        list_cor_hyp.append([new_dict, word, w])
+
+        if not c_father:
+            prefix[c_pre].pop(c_word)
 
     if not find_ending:
         return None
