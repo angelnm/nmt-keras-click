@@ -130,6 +130,7 @@ def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, wrong_ch
 def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_chars=[]):
     find_ending = False
     valid_next_words = dict()
+    prefix = dict()
 
     if valid_next_words.get(pos) == None:
         valid_next_words[pos] = dict()
@@ -139,6 +140,7 @@ def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_cha
         if c == u' ':
             plus_len = 1
 
+    prefix[""] = valid_next_words[pos]
     list_cor_hyp = [[valid_next_words[pos], ""]]
     while len(list_cor_hyp) != 0:
         # Cogemos el ultimo elemento de la lista
@@ -176,11 +178,18 @@ def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_cha
                             find_ending = True
             # En caso contrario nos tocara continuar
             elif not last:
+                # Si la parte inicial de la palabra coincide con nuestra palabra
                 if last_word[:len(word)] == word:
-                    #Anyadimos el elemento
                     w = word2index_y[w]
-                    c_father[w] = dict()
-                    list_cor_hyp.append([c_father[w], word])
+                    # Comprobamos si el prefijo ya se encuentra en nuestro diccionario
+                    if prefix.get(word) != None:
+                        c_father = prefix[word]
+                    else:
+                        #Anyadimos el elemento
+                        new_dict = dict()
+                        prefix[word] = new_dict
+                        c_father[w] = new_dict
+                        list_cor_hyp.append([new_dict, word])
 
     if not find_ending:
         return None
