@@ -183,7 +183,7 @@ def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_cha
                     w = word2index_y[w]
                     # Comprobamos si el prefijo ya se encuentra en nuestro diccionario
                     if prefix.get(word) != None:
-                        c_father = prefix[word]
+                        c_father[w] = prefix[word]
                     else:
                         #Anyadimos el elemento
                         new_dict = dict()
