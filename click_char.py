@@ -69,12 +69,10 @@ def parse_args():
 def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, wrong_chars = []):
     valid_next_words = dict()
     find_ending = False
-
     plus_len = 0
     for c in wrong_chars:
         if c == u' ':
             plus_len = 1
-
     list_cor_hyp = [[-1, pos, ""]]
     while len(list_cor_hyp) != 0:
         #Cogemos el ultimo elemento de la lista
@@ -83,7 +81,6 @@ def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, wrong_ch
         c_last = element[0]
         c_pos = element[1]
         c_pre = element[2]
-
         # Comprobamos si ya existe el diccionario de la posicion actual
         if valid_next_words.get(c_pos) == None:
             valid_next_words[c_pos] = dict()
@@ -130,7 +127,7 @@ def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, wrong_ch
     else:
         return valid_next_words
 """
-def fill_valid_next_word(pos, word2index_y, last_word, bpe_separator, wrong_chars=[]):
+def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_chars=[]):
     find_ending = False
     valid_next_words = dict()
 
@@ -664,6 +661,9 @@ def interactive_simulation():
                                 excluded_chars.append(hypothesis[next_correction_pos])
                                 print(excluded_chars)
                                 filtered_idx2word = fill_valid_next_words(pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_chars = excluded_chars, bpe_separator=bpe_separator)
+                                if filtered_idx2word is None:
+                                    fixed_words_user[pos] = word2index_y.get(unk_id)
+                                    nk_words_dict[pos] = last_word
                             else:
                                 # Al enviar un valor diferente de None el tamanyo minimo de la frase aumentara en 1
                                 filtered_idx2word = dict()
@@ -711,14 +711,14 @@ def interactive_simulation():
                             """
 
 
-                            for pos in filtered_idx2word.keys():
-                                logger.debug(f"Wrong pos: {pos}")
-                                for pre in filtered_idx2word[pos].keys():
-                                    if len(filtered_idx2word[pos][pre]) > 5:
-                                        logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in filtered_idx2word[pos][pre][:5]]))
-                                    else:
-                                        logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in filtered_idx2word[pos][pre]]))
-
+                            #for pos in filtered_idx2word.keys():
+                            #    logger.debug(f"Wrong pos: {pos}")
+                            #    for pre in filtered_idx2word[pos].keys():
+                            #        if len(filtered_idx2word[pos][pre]) > 5:
+                            #            logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in filtered_idx2word[pos][pre][:5]]))
+                            #        else:
+                            #            logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in filtered_idx2word[pos][pre]]))
+                            
                             logger.debug(u'to character %d.' % ( next_correction_pos))  
                             logger.debug([index2word_y[w] for w in fixed_words_user.values()])                 
 
