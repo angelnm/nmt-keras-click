@@ -817,21 +817,21 @@ def interactive_simulation():
                     logger.info(u"Current **KSMR** is: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
         # 6. Final!
         # 6.1 Log some information
-        print (u"Total number of errors:", total_errors)
-        print (u"Total number selections", total_mouse_actions)
-        print (u"WSR: %f" % (float(total_errors) / total_words))
-        print (u"MAR: %f" % (float(total_mouse_actions) / total_words))
-        print (u"MAR_c: %f" % (float(total_mouse_actions) / total_chars))
-        print (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
+        logger.debug (u"Total number of errors:", total_errors)
+        logger.debug (u"Total number selections", total_mouse_actions)
+        logger.debug (u"WSR: %f" % (float(total_errors) / total_words))
+        logger.debug (u"MAR: %f" % (float(total_mouse_actions) / total_words))
+        logger.debug (u"MAR_c: %f" % (float(total_mouse_actions) / total_chars))
+        logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
         # 6.2 Close open files
         fsrc.close()
         ftrans.close()
     except KeyboardInterrupt:
-        print (u'Interrupted!')
-        print (u"Total number of corrections (up to now):", total_errors)
-        print (u"WSR: %f" % (float(total_errors) / total_words))
-        print (u"SR: %f" % (float(total_mouse_actions) / n_line))
-        print (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
+        logger.debug (u'Interrupted!')
+        logger.debug (u"Total number of corrections (up to now):", total_errors)
+        logger.debug (u"WSR: %f" % (float(total_errors) / total_words))
+        logger.debug (u"SR: %f" % (float(total_mouse_actions) / n_line))
+        logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
         # 6.2 Close open files
         fsrc.close()
         ftrans.close()
