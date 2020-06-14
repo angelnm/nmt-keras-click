@@ -550,7 +550,7 @@ def interactive_simulation():
                                 wrong_words_counter = 0
                                 errors_sentence += 1
 
-                                if checked_index_h - last_checked_index > 1:
+                                if checked_index_h - last_checked_index >= 1:
                                     mouse_actions_sentence += 1
 
                                 
@@ -651,11 +651,13 @@ def interactive_simulation():
                                             unk_words.append(new_subword)
                                             unk_indices.append(checked_index_h + BPE_offset + n_word)
 
+                                if checked_index_h > last_checked_index:
+                                    last_checked_index = checked_index_h
                                 # PASAMOS A INTENTAR LEER LA SIGUIENTE LINEA
                                 checked_index_h += 1
                                 checked_index_r += 1
                                 BPE_offset += len(new_word_indices) - 1
-                                last_checked_index = checked_index_h
+                                
 
                             #### END IFELSE
                             ####################################################################################
