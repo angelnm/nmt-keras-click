@@ -8,14 +8,14 @@ def load_parameters():
     # Input data params
     TASK_NAME = 'xerox'                           # Task name.
     DATASET_NAME = TASK_NAME                        # Dataset name.
-    SRC_LAN = 'en'                                  # Language of the source text.
-    TRG_LAN = 'fr'                                  # Language of the target text.
+    SRC_LAN = 'de'                                  # Language of the source text.
+    TRG_LAN = 'en'                                  # Language of the target text.
     DATA_ROOT_PATH ='../%s/preraw/' % DATASET_NAME  # Path where data is stored.
 
     # SRC_LAN or TRG_LAN will be added to the file names.
-    TEXT_FILES = {'train': 'trn/fr-en/tr.',             # Data files.
-                  'val':   'dev/fr-en/dev.',
-                  'test':  'tst/fr-en/test.'}
+    TEXT_FILES = {'train': 'trn/de-en/tr.',             # Data files.
+                  'val':   'dev/de-en/dev.',
+                  'test':  'tst/de-en/test.'}
 
     GLOSSARY = None                               # Glossary location. If not None, it overwrites translations according to this glossary file
 
@@ -79,16 +79,16 @@ def load_parameters():
     ALIGN_FROM_RAW = True                         # Align using the full vocabulary or the short_list.
 
     # Source -- Target pkl mapping (used for heuristics 1--2). See utils/build_mapping_file.sh for further info.
-    MAPPING = DATA_ROOT_PATH + '/trn/fr-en/mapping.%s_%s.pkl' % (SRC_LAN, TRG_LAN) 
+    MAPPING = DATA_ROOT_PATH + '/trn/de-en/mapping.%s_%s.pkl' % (SRC_LAN, TRG_LAN) 
     # Word representation params
     TOKENIZATION_METHOD = 'tokenize_none'         # Select which tokenization we'll apply.
                                                   # See Dataset class (from stager_keras_wrapper) for more info.
-    BPE_CODES_PATH = DATA_ROOT_PATH + '/trn/fr-en/bpe.joint'    # If TOKENIZATION_METHOD = 'tokenize_bpe', # sets the path to the learned BPE codes.
-    DETOKENIZATION_METHOD = 'tokenize_none'     # Select which de-tokenization method we'll apply.
+    BPE_CODES_PATH = DATA_ROOT_PATH + '/trn/de-en/bpe.joint'    # If TOKENIZATION_METHOD = 'tokenize_bpe', # sets the path to the learned BPE codes.
+    DETOKENIZATION_METHOD = 'detokenize_bpe'     # Select which de-tokenization method we'll apply.
 
     APPLY_DETOKENIZATION = True                  # Wheter we apply a detokenization method.
 
-    TOKENIZE_HYPOTHESES = True   		          # Whether we tokenize the hypotheses using the
+    TOKENIZE_HYPOTHESES = True		          # Whether we tokenize the hypotheses using the
                                                   # previously defined tokenization method.
     TOKENIZE_REFERENCES = True                    # Whether we tokenize the references using the
                                                   # previously defined tokenization method.

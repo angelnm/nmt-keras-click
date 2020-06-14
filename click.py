@@ -770,7 +770,7 @@ def interactive_simulation():
                               float(errors_sentence) / len(hypothesis),
                               mouse_actions_sentence,
                               float(mouse_actions_sentence) / len(hypothesis),
-                              (float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions),
+                              (float(total_mouse_actions) - args.ma*float(errors_sentence))/float(total_mouse_actions),
                               float(mouse_actions_sentence) / chars_sentence,
                               float(keystrokes_sentence + mouse_actions_sentence) / chars_sentence,
                               float(total_errors) / total_words,
@@ -815,16 +815,16 @@ def interactive_simulation():
                     logger.info(u"Current speed is {} per sentence".format((time.time() - start_time) / (n_line + 1)))
                     logger.info(u"Current WSR is: %f" % (float(total_errors) / total_words))
                     logger.info(u"Current MAR is: %f" % (float(total_mouse_actions) / total_words))
-                    logger.info(u"Current uMAR is: %f" % ((float(total_mouse_actions)) - args.ma*float(total_errors))/float(total_mouse_actions))
+                    logger.info(u"Current uMAR is: %f" % ((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions)))
                     logger.info(u"Current MAR_c is: %f" % (float(total_mouse_actions) / total_chars))
                     logger.info(u"Current **KSMR** is: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
         # 6. Final!
         # 6.1 Log some information
-        logger.debug (u"Total number of errors:", total_errors)
-        logger.debug (u"Total number selections", total_mouse_actions)
+        logger.debug (u"Total number of errors: %d" % (total_errors))
+        logger.debug (u"Total number selections: %d" % (total_mouse_actions))
         logger.debug (u"WSR: %f" % (float(total_errors) / total_words))
         logger.debug (u"MAR: %f" % (float(total_mouse_actions) / total_words))
-        logger.info(u"Currnt uMAR is: %f" % ((float(total_mouse_actions)) - args.ma*float(total_errors))/float(total_mouse_actions))
+        logger.info(u"Current uMAR is: %f" % ((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions)))
         logger.debug (u"MAR_c: %f" % (float(total_mouse_actions) / total_chars))
         logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
         # 6.2 Close open files
@@ -832,10 +832,10 @@ def interactive_simulation():
         ftrans.close()
     except KeyboardInterrupt:
         logger.debug (u'Interrupted!')
-        logger.debug (u"Total number of corrections (up to now):", total_errors)
+        logger.debug (u"Total number of corrections (up to now): %d" % (total_errors))
         logger.debug (u"WSR: %f" % (float(total_errors) / total_words))
         logger.info(u"Current MAR is: %f" % (float(total_mouse_actions) / total_words))
-        logger.info(u"Current uMAR is: %f" % ((float(total_mouse_actions)) - args.ma*float(total_errors))/float(total_mouse_actions))
+        logger.info(u"Current uMAR is: %f" % ((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions)))
         logger.info(u"Current MAR_c is: %f" % (float(total_mouse_actions) / total_chars))
         logger.debug (u"SR: %f" % (float(total_mouse_actions) / n_line))
         logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
