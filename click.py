@@ -540,15 +540,18 @@ def interactive_simulation():
                                 # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECTION Y SALIMOS DEL BUCLE
                                 correction_made = True
                                 logger.debug(u'"%s" to position %d (end-of-sentence)' % (new_word, checked_index_h))
-                                last_checked_index = checked_index_h
+                                
+                                if checked_index_h > last_checked_index:
+                                    last_checked_index = checked_index_h
                                 break
 
                             elif hypothesis[checked_index_h] != reference[checked_index_r] and wrong_words_counter >= args.ma:
                                 wrong_words = dict()
                                 wrong_words_counter = 0
                                 errors_sentence += 1
-                                # El raton ya esta en el sitio
-                                #mouse_actions_sentence +=1
+
+                                if checked_index_h - last_checked_index > 1:
+                                    mouse_actions_sentence += 1
 
                                 
                                 # COSTE DE ESCRIBIR LA PALABRA ORIGINAL
@@ -570,7 +573,9 @@ def interactive_simulation():
                                 # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECCION Y SALIMOS DEL BUCLE
                                 correction_made = True
                                 logger.debug(u'"%s" to position %d' % (new_word, checked_index_h))
-                                last_checked_index = checked_index_h
+                                
+                                if checked_index_h > last_checked_index:
+                                    last_checked_index = checked_index_h
                                 break
                             ###############################################################################
                             # LAS PALABRAS DE HIPOTESIS Y REFERENCIA COMPARADAS SON DIFERENTES
@@ -580,9 +585,8 @@ def interactive_simulation():
                                 mouse_actions_sentence += 1
                                 wrong_words_counter += 1    
 
-                                if checked_index_h - last_checked_index > 1:
-                                    # Este Mouse Action seria el explicito, sin coste
-                                    mouse_actions_sentence += 1
+                                #if checked_index_h - last_checked_index > 1:
+                                #    mouse_actions_sentence += 1
 
                                 last_correct_pos = checked_index_h
 
@@ -618,7 +622,9 @@ def interactive_simulation():
                                 # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECCION Y SALIMOS DEL BUCLE
                                 correction_made = True
                                 logger.debug(u'Wrong "%s" in position %d' % (hypothesis[checked_index_h], checked_index_h))
-                                last_checked_index = checked_index_h
+                                
+                                if checked_index_h > last_checked_index:
+                                    last_checked_index = checked_index_h
                                 break
                             ###############################################################################
                             # LAS PALABRAS DE HIPOTESIS Y REFERENCIA COMPARADAS CON IGUALES
