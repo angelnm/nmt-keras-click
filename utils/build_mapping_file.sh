@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-fast_align=/home/lvapeab/smt/software/fast_align/build/fast_align
+fast_align=/home/annamar/fast_align/build/fast_align
 utilsdir="./"
 
 usage(){
