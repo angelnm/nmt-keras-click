@@ -558,12 +558,14 @@ def interactive_simulation():
                                     # ANYADIMOS LA PALABRA INCORRECTA A LA LISTA DE LAS EXCLUIDAS
                                     if checked_index_h >= len(hypothesis):
                                         hypo_words_indices = [0]
+                                        word_error = 'eos_sym'
                                     else:
                                         if version_info[0] < 3:
                                             hypo_words = tokenize_f(hypothesis[checked_index_h].encode('utf-8')).split()
                                         else:
                                             hypo_words = tokenize_f(str(hypothesis[checked_index_h].encode('utf-8'), 'utf-8')).split()
                                         hypo_words_indices = [word2index_y.get(word, unk_id) for word in hypo_words]
+                                        word_error = hypothesis[checked_index_h]
 
                                     # SE ANYADEN OTRA COSAS EN OTRO LUGAR
                                     last_word = -1
@@ -587,7 +589,7 @@ def interactive_simulation():
 
                                     # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECCION Y SALIMOS DEL BUCLE
                                     correction_made = True
-                                    logger.debug(u'Wrong "%s" in position %d' % (hypothesis[checked_index_h], checked_index_h))
+                                    logger.debug(u'Wrong "%s" in position %d' % (word_error, checked_index_h))
                                     
                                     if checked_index_h > last_checked_index:
                                         last_checked_index = checked_index_h
