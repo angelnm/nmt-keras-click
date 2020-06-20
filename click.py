@@ -556,14 +556,13 @@ def interactive_simulation():
 
                                     # Substitution
                                     # ANYADIMOS LA PALABRA INCORRECTA A LA LISTA DE LAS EXCLUIDAS
-                                    if version_info[0] < 3:
-                                        hypo_words = tokenize_f(hypothesis[checked_index_h].encode('utf-8')).split()
-                                    else:
-                                        hypo_words = tokenize_f(str(hypothesis[checked_index_h].encode('utf-8'), 'utf-8')).split()
-                                    
                                     if checked_index_h >= len(hypothesis):
                                         hypo_words_indices = [0]
                                     else:
+                                        if version_info[0] < 3:
+                                            hypo_words = tokenize_f(hypothesis[checked_index_h].encode('utf-8')).split()
+                                        else:
+                                            hypo_words = tokenize_f(str(hypothesis[checked_index_h].encode('utf-8'), 'utf-8')).split()
                                         hypo_words_indices = [word2index_y.get(word, unk_id) for word in hypo_words]
 
                                     # SE ANYADEN OTRA COSAS EN OTRO LUGAR
