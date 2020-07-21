@@ -97,6 +97,73 @@ def calculate_scores(scorers, refs, hypos):
 
 	return scores_sentence
 
+def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, params, args, isle_indices, filtered_idx2word,
+									index2word_y, sources, heuristic, mapping, unk_indices, unk_words, unks_in_isles, unk_id=1):
+	"""
+	Generates and decodes a user-constrained hypothesis given a source sentence and the user feedback signals.
+	:param src_seq: Sequence of indices of the source sentence to translate.
+	:param fixed_words_user: Dict of word indices fixed by the user and its corresponding position: {pos: idx_word}
+	:param args: Simulation options
+	:param isle_indices: Isles fixed by the user. List of (isle_index, [words])
+	:param filtered_idx2word: Dictionary of possible words according to the current word prefix.
+	:param index2word_y: Indices to words mapping.
+	:param sources: Source words (for unk replacement)
+	:param heuristic: Unk replacement heuristic
+	:param mapping: Source--Target dictionary for Unk replacement strategies 1 and 2
+	:param unk_indices: Indices of the hypothesis that contain an unknown word (introduced by the user)
+	:param unk_words: Corresponding word for unk_indices
+	:return: Constrained hypothesis
+	"""
+	# Generate a constrained hypothesis
+	trans_indices, costs, alphas = beam_searcher. \
+		sample_beam_search_interactive(src_seq,
+									   fixed_words=copy.copy(fixed_words_user),
+									   max_N=args.max_n,
+									   isles=isle_indices,
+									   valid_next_words=filtered_idx2word,
+									   idx2word=index2word_y)
+
+	# Substitute possible unknown words in isles
+	unk_in_isles = []
+	for isle_idx, isle_sequence, isle_words in unks_in_isles:
+		if unk_id in isle_sequence:
+			unk_in_isles.append((subfinder(isle_sequence, list(trans_indices)), isle_words))
+
+	if params['pos_unk']:
+		alphas = [alphas]
+	else:
+		alphas = None
+
+	# Decode predictions
+	hypothesis = decode_predictions_beam_search([trans_indices],
+												index2word_y,
+												alphas=alphas,
+												x_text=sources,
+												heuristic=heuristic,
+												mapping=mapping,
+												pad_sequences=True,
+												verbose=0)[0]
+	hypothesis = hypothesis.split()
+	for (words_idx, starting_pos), words in unk_in_isles:
+		for pos_unk_word, pos_hypothesis in enumerate(range(starting_pos, starting_pos + len(words_idx))):
+			hypothesis[pos_hypothesis] = words[pos_unk_word]
+
+	# UNK words management
+	if len(unk_indices) > 0:  # If we added some UNK word
+		if len(hypothesis) < len(unk_indices):  # The full hypothesis will be made up UNK words:
+			for i, index in enumerate(range(0, len(hypothesis))):
+				hypothesis[index] = unk_words[unk_indices[i]]
+			for ii in range(i + 1, len(unk_words)):
+				hypothesis.append(unk_words[ii])
+		else:  # We put each unknown word in the corresponding gap
+			for i, index in enumerate(unk_indices):
+				if index < len(hypothesis):
+					hypothesis[index] = unk_words[i]
+				else:
+					hypothesis.append(unk_words[i])
+
+	return hypothesis
+
 def interactive_simulation():
 	args = parse_args()
 
@@ -397,75 +464,255 @@ def interactive_simulation():
 				tokenized_input.append(CM.END_P)
 				encoded_hypothesis.append(CM.END_P)
 
-				sentence_cm = get_sentence_cm(confidence_model, tokenized_input, encoded_hypothesis, 0)
-				if sentence_cm >= sentence_threshold:
-					# 2.1. If it is greater or equal than the threshold check it as correct
-					pass
-				else:
-					# 2.2. If it is lower than the threshold edit the sentence
+				correct_words = []
+				incorrect_words = []
 
-					#2.3. Initialice edit variables
-					checked_index_r = 0
-					unk_words = []
 
-					#2.4. Check every word of the hypothesis
-					while checked_index_r <= len(hypothesis):
-						# 2.5 Check Confidence Word Measure
-						correct_word = [True for th in word_thresholds]
-						if checked_index_r == len(hypothesis):
-							hypo_word = ''
-							hypo_words = []
+				# 2.2. If it is lower than the threshold edit the sentence
 
-							word_cm = confidence_model.get_confidence(tokenized_input, CM.END_P)
-							for idx, th in enumerate(word_thresholds): 
-								if word_cm < th:
-									correct_word[idx] = False
+				# 2.2 Wrong hypothesis -> Interactively translate the sentence
+				checked_index_r = 0
+				checked_index_h = 0
+				last_checked_index = 0
+				unk_words = []
+				fixed_words_user = OrderedDict()  # {pos: word}
+				old_isles = []
+				BPE_offset = 0
+				while checked_index_r < len(reference):
+					validated_prefix = []
+					correction_made = False
+					# Stage 1: Isles selection
+					#   1. Select the multiple isles in the hypothesis.
+					if not args.prefix:
+						hypothesis_isles = find_isles(hypothesis, reference)[0]
+						tokenized_isles = []
+						next_isle_bpe_offset = 0
+						for isle_idx, isle in hypothesis_isles:
+							tokenized_words_in_isle = []
+							for word in isle:
+								tokenized_word = tokenize_f(word.encode('utf-8')).split()
+								tokenized_words_in_isle += tokenized_word
+							tokenized_isle = (isle_idx + next_isle_bpe_offset, tokenized_words_in_isle)
+							# tokenized_isle_indices = (isle_idx + next_isle_bpe_offset, [map(lambda x: word2index_y.get(x, unk_id), tokenized_isle)])
+							# logger.debug(u"tokenized_isle_indices: %s" % (str(tokenized_isle_indices)))
+							next_isle_bpe_offset += len(tokenized_words_in_isle) - len(isle)
+							tokenized_isles.append(tokenized_isle)
+						# isle_indices =  [(index, map(lambda x: word2index_y.get(x, unk_id), word)) for index, word in hypothesis_isles]
+						# hypothesis_isles_words = [(index, params_prediction['detokenize_f'](u' '.join(isle)) for index, isle in hypothesis_isles)]
+						logger.debug(u"Isles: %s" % (str(hypothesis_isles)))
+						isle_indices = [(index, map(lambda x: word2index_y.get(x, unk_id),
+													flatten_list_of_lists(map(lambda y:
+																			  tokenize_f(y).split(),
+																			  word))))
+										for index, word in tokenized_isles] \
+							if params_prediction['apply_tokenization'] else \
+							[(index, map(lambda x: word2index_y.get(x, unk_id), word))
+							 for index, word in tokenized_isles]
+						unks_in_isles = [(index, map(lambda w: word2index_y.get(w, unk_id), word), word) for index, word in tokenized_isles]
+						# Count only for non selected isles
+						# Isles of length 1 account for 1 mouse action
+						mouse_actions_sentence += compute_mouse_movements(isle_indices,
+																		  old_isles,
+																		  last_checked_index)
+					else:
+						isle_indices = []
+						unks_in_isles = []
+					# Stage 2: INMT
+					# From left to right, we will correct the hypotheses, taking into account the isles info
+					# At each timestep, the user can make two operations:
+					# Insertion of a new word at the end of the hypothesis
+					# Substitution of a word by another
+					while checked_index_r < len(reference):  # We check all words in the reference
+						new_word = reference[checked_index_r]
+						new_word_len = len(new_word)
+						if version_info[0] < 3:  # Execute different code for python 2 or 3
+							new_words = tokenize_f(new_word.encode('utf-8')).split()  # if params_prediction['apply_tokenization'] else [new_word]
 						else:
-							# Tokenize if necessary the hypothesis word
-							hypo_word = hypothesis[checked_index_r]
+							new_words = tokenize_f(str(new_word.encode('utf-8'),
+													   'utf-8')).split()  # if params_prediction['apply_tokenization'] else [new_word]
+						if new_words[-1][-2:] == bpe_separator:  # Remove potential subwords in user feedback.
+							new_words[-1] = new_words[-1][:-2]
+						
+						if checked_index_h >= len(hypothesis):
+							incorrect_words.append(CM.END_P)
+							# Insertions (at the end of the sentence)
+							errors_sentence += 1
+							# 2.2.9 Add a mouse action if we moved the pointer
+							if checked_index_h - last_checked_index > 1:
+								mouse_actions_sentence += 1
+							keystrokes_sentence += new_word_len
+							new_word_indices = [word2index_y.get(word, unk_id) for word in new_words]
+							validated_prefix.append(new_word_indices)
+							for n_word, new_subword in enumerate(new_words):
+								fixed_words_user[checked_index_h + BPE_offset + n_word] = new_word_indices[n_word]
+								if word2index_y.get(new_subword) is None:
+									if checked_index_h + BPE_offset + n_word not in unk_indices:
+										unk_words.append(new_subword)
+										unk_indices.append(checked_index_h + BPE_offset + n_word)
+							correction_made = True
+							logger.debug(u'"%s" to position %d (end-of-sentence)' % (new_word, checked_index_h))
+							last_checked_index = checked_index_h
+							
+							checked_index_h += 1
+							checked_index_r += 1
+							BPE_offset += len(new_word_indices) - 1
+							break
+						elif hypothesis[checked_index_h] != reference[checked_index_r]:
+							incorrect_words.append(hypothesis[checked_index_r])
+							errors_sentence += 1
+							mouse_actions_sentence += 1
+							if checked_index_h - last_checked_index > 1:
+								mouse_actions_sentence += 1
+							last_correct_pos = checked_index_h
+							keystrokes_sentence += new_word_len
+							# Substitution
+							new_word_indices = [word2index_y.get(word, unk_id) for word in new_words]
+							validated_prefix.append(new_word_indices)
+							for n_word, new_subword in enumerate(new_words):
+								fixed_words_user[checked_index_h + BPE_offset + n_word] = new_word_indices[n_word]
+								if word2index_y.get(new_subword) is None:
+									if checked_index_h + BPE_offset + n_word not in unk_indices:
+										unk_words.append(new_subword)
+										unk_indices.append(checked_index_h + BPE_offset + n_word)
+							correction_made = True
+							logger.debug(u'"%s" to position %d' % (new_word, checked_index_h))
+							last_checked_index = checked_index_h
+
+							checked_index_h += 1
+							checked_index_r += 1
+							BPE_offset += len(new_word_indices) - 1
+							break
+						else:
+							correct_words.append(hypothesis[checked_index_r])
+							# No errors
 							if version_info[0] < 3:  # Execute different code for python 2 or 3
-								hypo_words = tokenize_f(hypo_word.encode('utf-8')).split() 
+								correct_words_h = tokenize_f(hypothesis[checked_index_h].encode('utf-8')).split()  # if params_prediction['apply_tokenization'] else [reference[checked_index_h]]
 							else:
-								hypo_words = tokenize_f(str(hypo_word.encode('utf-8'), 'utf-8')).split()
+								correct_words_h = tokenize_f(str(hypothesis[checked_index_h].encode(
+									'utf-8'), 'utf-8')).split()  # if params_prediction['apply_tokenization'] else [reference[checked_index_h]]
+							new_word_indices = [word2index_y.get(word, unk_id) for word in correct_words_h]
+							validated_prefix.append(new_word_indices)
+							for n_word, new_subword in enumerate(new_words):
+								fixed_words_user[checked_index_h + BPE_offset + n_word] = new_word_indices[n_word]
+								if word2index_y.get(new_subword) is None:
+									if checked_index_h + BPE_offset + n_word not in unk_indices:
+										unk_words.append(new_subword)
+										unk_indices.append(checked_index_h + BPE_offset + n_word)
 
-							for w in hypo_words:
-								word_cm = confidence_model.get_confidence(tokenized_input, w)
-								for idx, th in enumerate(word_thresholds): 
-									if word_cm < th:
-										correct_word[idx] = False
+							checked_index_h += 1
+							checked_index_r += 1
+							BPE_offset += len(new_word_indices) - 1
+							last_checked_index = checked_index_h
+					old_isles = [isle[1] for isle in isle_indices]
+					old_isles.append(validated_prefix)
 
-						# [th, total_wrong_words, total_cw, total_ww]
-						for idx, metrics in enumerate(word_metrics):
-							correct = correct_word[idx]
-							if not correct:
-								# 2.6. The measure confidence of the word is lower than the threshold
-								metrics[3] += 1
+					# Generate a new hypothesis
+					if correction_made:
+						logger.debug("")
+						trans_indices, costs, alphas = interactive_beam_searcher. \
+							sample_beam_search_interactive(src_seq,
+														   fixed_words=copy.copy(fixed_words_user),
+														   max_N=args.max_n,
+														   isles=isle_indices,
+														   idx2word=index2word_y)
+						unk_in_isles = []
+						for isle_idx, isle_sequence, isle_words in unks_in_isles:
+							if unk_id in isle_sequence:
+								unk_in_isles.append((subfinder(isle_sequence, list(trans_indices)), isle_words))
+						if params['POS_UNK']:
+							alphas = [alphas]
+						else:
+							alphas = None
+						alphas = None
+						encoded_hypothesis = decode_predictions_beam_search([trans_indices],
+																			index2word_y,
+																			alphas=alphas,
+																			x_text=sources,
+																			heuristic=heuristic,
+																			mapping=mapping,
+																			pad_sequences=True,
+																			verbose=0)[0]
+						encoded_hypothesis = encoded_hypothesis.split()
+						hypothesis = encoded_hypothesis
+						for (words_idx, starting_pos), words in unk_in_isles:
+							for pos_unk_word, pos_hypothesis in enumerate(range(starting_pos, starting_pos + len(words_idx))):
+								hypothesis[pos_hypothesis] = words[pos_unk_word]
+						hypothesis_number += 1
+						# UNK words management
+						if len(unk_indices) > 0:  # If we added some UNK word
+							if len(hypothesis) < len(unk_indices):  # The full hypothesis will be made up UNK words:
+								for i, index in enumerate(range(0, len(hypothesis))):
+									hypothesis[index] = unk_words[unk_indices[i]]
+								for ii in range(i + 1, len(unk_words)):
+									hypothesis.append(unk_words[ii])
+							else:  # We put each unknown word in the corresponding gap
+								for i, index in enumerate(unk_indices):
+									if index < len(hypothesis):
+										hypothesis[index] = unk_words[i]
+									else:
+										hypothesis.append(unk_words[i])
+						hypothesis = u' '.join(hypothesis)
+						hypothesis = params_prediction['detokenize_f'](hypothesis) \
+							if params_prediction.get('apply_detokenization', False) else hypothesis
+						logger.debug("Target: %s" % ' '.join(reference))
+						logger.debug("Hypo_%d: %s" % (hypothesis_number, hypothesis))
+						hypothesis = hypothesis.split()
 
-								if checked_index_r >= len(reference):
-									# The hypothesis is to long
-									if hypo_word == '':
-										metrics[1] += 1
-								elif hypo_word != reference[checked_index_r]:
-									# The hypothesis word is incorrect
-									pass
-								else:
-									# The hypothesis word is correct
-									metrics[1] += 1
-								
-							else:
-								# 2.7. The measure confidence of the word is greater than the threshold
-								metrics[2] +=1
+				# Final check: The reference is a subset of the hypothesis: Cut the hypothesis
+				if len(reference) < len(hypothesis):
+					hypothesis = hypothesis[:len(reference)]
+					errors_sentence += 1
+					keystrokes_sentence += 1
+					logger.debug("Cutting hypothesis")
 
-								# Update the interactive variables
-								if checked_index_r >= len(reference):
-									if hypo_word != '':
-										metrics[1] += 1
-								elif hypo_word != reference[checked_index_r]:
-									metrics[1] += 1
+				# Check confidence measures
+				logger.debug(str(correct_words))
+				logger.debug(str(incorrect_words))
+				total_words_checked += len(correct_words) + len(incorrect_words)
 
-						total_words_checked += 1
-						checked_index_r += 1
+				for word in correct_words:
+					if version_info[0] < 3:  # Execute different code for python 2 or 3
+						word = tokenize_f(word.encode('utf-8')).split() 
+					else:
+						word = tokenize_f(str(word.encode('utf-8'), 'utf-8')).split()
 
+					val = 0
+					for w in word:
+						word_cm = confidence_model.get_confidence(tokenized_input, w)
+						if word_cm > val:
+							val = word_cm
+
+
+					for metrics in word_metrics:
+						threshold = metrics[0]
+
+						if val >= threshold:
+							metrics[2] += 1
+						else:
+							metrics[1] += 1
+							metrics[3] += 1
+
+				for word in incorrect_words:
+					if version_info[0] < 3:  # Execute different code for python 2 or 3
+						word = tokenize_f(word.encode('utf-8')).split() 
+					else:
+						word = tokenize_f(str(word.encode('utf-8'), 'utf-8')).split()
+
+					val = 0
+					for w in word:
+						word_cm = confidence_model.get_confidence(tokenized_input, w)
+						if word_cm > val:
+							val = word_cm
+
+
+					for metrics in word_metrics:
+						threshold = metrics[0]
+
+						if val >= threshold:
+							metrics[1] += 1
+							metrics[2] += 1
+						else:
+							metrics[3] += 1
 
 				# 3. Update user effort counters
 				total_sentences += 1
@@ -477,6 +724,8 @@ def interactive_simulation():
 
 				# 3.1. Calculate the scores
 				scores_sentence = calculate_scores(scorers, {n_line:refs_metrics[n_line]}, {n_line:hypo_metrics[n_line]})
+				if scores_sentence["Bleu_1"] < 0.9999:
+					exit()
 
 				# 3.2 Log some info
 				logger.debug(u"Final hypotesis: %s" % u' '.join(hypothesis))
@@ -500,7 +749,7 @@ def interactive_simulation():
 						logger.info(u"Total number of total wrong classified words: %d" % (metrics[1]))
 						logger.info(u"Total number of total correct words: %d" % (metrics[2]))
 						logger.info(u"Total number of total wrong words: %d" % (metrics[3]))
-						logger.info(u"Current word CER is: %f" % (float(total_words_checked - metrics[1])/float(total_words_checked)))
+						logger.info(u"Current word CER is: %f" % (float(metrics[1])/float(total_words_checked)))
 
 					scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
 					for metric in scores_sentence:
@@ -515,7 +764,7 @@ def interactive_simulation():
 			logger.info(u"Total number of total wrong classified words: %d" % (metrics[1]))
 			logger.info(u"Total number of total correct words: %d" % (metrics[2]))
 			logger.info(u"Total number of total wrong words: %d" % (metrics[3]))
-			logger.info(u"Current word CER is: %f" % (float(total_words_checked - metrics[1])/float(total_words_checked)))
+			logger.info(u"Current word CER is: %f" % (float(metrics[1])/float(total_words_checked)))
 
 		scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
 		for metric in scores_sentence:
@@ -533,7 +782,7 @@ def interactive_simulation():
 			logger.info(u"Total number of total wrong classified words: %d" % (metrics[1]))
 			logger.info(u"Total number of total correct words: %d" % (metrics[2]))
 			logger.info(u"Total number of total wrong words: %d" % (metrics[3]))
-			logger.info(u"Current word CER is: %f" % (float(total_words_checked - metrics[1])/float(total_words_checked)))
+			logger.info(u"Current word CER is: %f" % (float(metrics[1])/float(total_words_checked)))
 
 		scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
 		for metric in scores_sentence:
