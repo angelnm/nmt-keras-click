@@ -552,7 +552,7 @@ def interactive_simulation():
 							correction_made = True
 							logger.debug(u'"%s" to position %d (end-of-sentence)' % (new_word, checked_index_h))
 							last_checked_index = checked_index_h
-							
+
 							checked_index_h += 1
 							checked_index_r += 1
 							BPE_offset += len(new_word_indices) - 1
@@ -724,8 +724,6 @@ def interactive_simulation():
 
 				# 3.1. Calculate the scores
 				scores_sentence = calculate_scores(scorers, {n_line:refs_metrics[n_line]}, {n_line:hypo_metrics[n_line]})
-				if scores_sentence["Bleu_1"] < 0.9999:
-					exit()
 
 				# 3.2 Log some info
 				logger.debug(u"Final hypotesis: %s" % u' '.join(hypothesis))
