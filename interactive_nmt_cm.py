@@ -69,9 +69,9 @@ def parse_args():
 
 	parser.add_argument("-cm", "--confidence_model", type=str, required=True, help="path to the model of the confidence measure")
 	#parser.add_argument("Mean or Ratio")
-	parser.add_argument("-st", "--sentence_threshold", type=float, default=1.0, help="Sentence threshold")
+	parser.add_argument("-st", "--sentence_threshold", type=float, default=0.0, help="Sentence threshold")
 	#parser.add_argument("Ratio threshold")
-	parser.add_argument("-wt", "--word_threshold", type=float, default=0.0, help="Words threshold")
+	parser.add_argument("-wt", "--word_threshold", type=float, default=1.0, help="Words threshold")
 
 	return parser.parse_args()
 
@@ -456,9 +456,10 @@ def interactive_simulation():
 				# 2. Check Confidence Sentence Measure
 				tokenized_input = tokenized_input.split()
 				tokenized_input.append(CM.END_P)
-				encoded_hypothesis.append(CM.END_P)
+				#encoded_hypothesis.append(CM.END_P)
 
 				sentence_cm = get_sentence_cm(confidence_model, tokenized_input, encoded_hypothesis, 0)
+				logger.debug(u"Confidence Measure: %.10f" % sentence_cm) 
 				if sentence_cm >= sentence_threshold:
 					# 2.1. If it is greater or equal than the threshold check it as correct
 					pass
@@ -744,8 +745,8 @@ def interactive_simulation():
 					logger.info(u"Current uMAR is: %f" % ((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions)))
 					logger.info(u"Current MAR_c is: %f" % (float(total_mouse_actions) / total_chars))
 					logger.info(u"Current **KSMR** is: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
-					logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(total_sentences)))
-					logger.info(u"Current word CER is: %f" % (float(total_words_checked - total_wrong_words)/float(total_words_checked)))
+					logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(max(total_sentences,1))))
+					logger.info(u"Current word CER is: %f" % (float(total_words_checked - total_wrong_words)/float(max(total_words_checked,1))))
 
 					scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
 					for metric in scores_sentence:
@@ -760,8 +761,8 @@ def interactive_simulation():
 		logger.info(u"Current uMAR is: %f" % ((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions)))
 		logger.debug (u"MAR_c: %f" % (float(total_mouse_actions) / total_chars))
 		logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
-		logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(total_sentences)))
-		logger.info(u"Current word CER is: %f" % (float(total_words_checked - total_wrong_words)/float(total_words_checked)))
+		logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(max(total_sentences,1))))
+		logger.info(u"Current word CER is: %f" % (float(total_words_checked - total_wrong_words)/float(max(total_words_checked,1))))
 
 		scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
 		for metric in scores_sentence:
@@ -779,8 +780,8 @@ def interactive_simulation():
 		logger.info(u"Current MAR_c is: %f" % (float(total_mouse_actions) / total_chars))
 		logger.debug (u"SR: %f" % (float(total_mouse_actions) / n_line))
 		logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
-		logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(total_sentences)))
-		logger.info(u"Current word CER is: %f" % (float(total_words_checked - total_wrong_words)/float(total_words_checked)))
+		logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(max(total_sentences,1))))
+		logger.info(u"Current word CER is: %f" % (float(total_words_checked - total_wrong_words)/float(max(total_words_checked,1))))
 
 		scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
 		for metric in scores_sentence:
