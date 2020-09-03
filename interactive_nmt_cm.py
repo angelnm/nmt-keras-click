@@ -592,7 +592,7 @@ def interactive_simulation():
 
 								# Change to the next word
 								checked_index_r += 1
-								BPE_offset += len(hypo_words)
+								BPE_offset += len(hypo_words) -1
 							
 						# Generate a new hypothesis
 						if correction_made:
