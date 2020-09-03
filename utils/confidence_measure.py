@@ -1,4 +1,5 @@
 import sys
+import math
 from scipy.sparse import csr_matrix, load_npz
 
 class CM:
@@ -85,13 +86,18 @@ class CM:
 		:param words_target: List of words form the target sentence
 		:return: Confidence measure 
 		"""
-		confidence = 1.0
+		confidence = 0.0
+
+		print(words_source)
 
 		for word_t in words_target:
-			confidence *= self.get_confidence(words_source, word_t)
+			value = math.log(max(self.get_confidence(words_source, word_t), 1e-10))
+			confidence += value
 
 		len_sentence = len(words_target)
-		confidence = confidence ** (1./len_sentence)
+		confidence = confidence/len_sentence
+		confidence = math.exp(confidence)
+
 		return confidence
 
 	def get_confidence(self, words_source, word_target):
