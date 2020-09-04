@@ -70,7 +70,7 @@ class CM:
 		correct_words = 0.0
 
 		for word_t in words_target:
-			prob = self.get_confidence(wordS_source, word_t)
+			prob = self.get_confidence(words_source, word_t)
 			if prob >= threshold:
 				correct_words += 1
 

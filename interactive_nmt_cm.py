@@ -457,7 +457,7 @@ def interactive_simulation():
 				tokenized_input = tokenized_input.split()
 				tokenized_input.append(CM.END_P)
 				#encoded_hypothesis.append(CM.END_P)
-				sentence_cm = get_sentence_cm(confidence_model, tokenized_input, encoded_hypothesis, args.ratio, args.ratio_method)
+				sentence_cm = get_sentence_cm(confidence_model, tokenized_input, encoded_hypothesis, args.ratio, args.ratio_threshold)
 
 
 
