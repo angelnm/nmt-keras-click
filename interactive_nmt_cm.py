@@ -69,7 +69,7 @@ def parse_args():
 
 	parser.add_argument("-cm", "--confidence_model", type=str, required=True, help="path to the model of the confidence measure")
 	parser.add_argument("-st", "--sentence_threshold", type=float, default=0.0, help="Sentence threshold")
-	parser.add_argument("-r", "--ratio", default=False, help="Ratio Confidence Measure")
+	parser.add_argument("-r", "--ratio", default=False, action='store_true', help="Ratio Confidence Measure")
 	parser.add_argument("-rt", "--ratio_threshold", type=float, default=0.0, help="Threshold for ratio mode")
 	parser.add_argument("-wt", "--word_threshold", type=float, default=1.0, help="Words threshold")
 
@@ -457,7 +457,7 @@ def interactive_simulation():
 				tokenized_input = tokenized_input.split()
 				tokenized_input.append(CM.END_P)
 				#encoded_hypothesis.append(CM.END_P)
-				sentence_cm = get_sentence_cm(confidence_model, tokenized_input, encoded_hypothesis, args.r, args.rt)
+				sentence_cm = get_sentence_cm(confidence_model, tokenized_input, encoded_hypothesis, args.ratio, args.ratio_method)
 
 
 
