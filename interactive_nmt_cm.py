@@ -68,19 +68,19 @@ def parse_args():
 	parser.add_argument("-ma", type=int, default=0, help="Max number of mouse actions for the same position")
 
 	parser.add_argument("-cm", "--confidence_model", type=str, required=True, help="path to the model of the confidence measure")
-	#parser.add_argument("Mean or Ratio")
 	parser.add_argument("-st", "--sentence_threshold", type=float, default=0.0, help="Sentence threshold")
-	#parser.add_argument("Ratio threshold")
+	parser.add_argument("-r", "--ratio", default=False, help="Ratio Confidence Measure")
+	parser.add_argument("-rt", "--ratio_threshold", type=float, default=0.0, help="Threshold for ratio mode")
 	parser.add_argument("-wt", "--word_threshold", type=float, default=1.0, help="Words threshold")
 
 	return parser.parse_args()
 
-def get_sentence_cm(confidence_model, reference, hypothesis, method=0, ratio=0.0):
+def get_sentence_cm(confidence_model, reference, hypothesis, ratio_method=False, ratio=0.0):
 	sentence_cm = 0
 
-	if method == 0:
+	if not ratio_method:
 		sentence_cm = confidence_model.get_mean_confidence(reference, hypothesis)
-	elif method == 1:
+	elif ratio_method:
 		sentence_cm = confidence_model.get_ratio_confidence(reference, hypothesis, ratio)
 
 	return sentence_cm
@@ -457,8 +457,10 @@ def interactive_simulation():
 				tokenized_input = tokenized_input.split()
 				tokenized_input.append(CM.END_P)
 				#encoded_hypothesis.append(CM.END_P)
+				sentence_cm = get_sentence_cm(confidence_model, tokenized_input, encoded_hypothesis, args.r, args.rt)
 
-				sentence_cm = get_sentence_cm(confidence_model, tokenized_input, encoded_hypothesis, 0)
+
+
 				logger.debug(u"Confidence Measure: %.10f" % sentence_cm) 
 				if sentence_cm >= sentence_threshold:
 					# 2.1. If it is greater or equal than the threshold check it as correct
