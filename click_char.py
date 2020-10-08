@@ -65,103 +65,55 @@ def parse_args():
 
     return parser.parse_args()
 
-"""
-def fill_valid_next_words( pos, word2index_y, last_word, bpe_separator, wrong_chars = []):
-    valid_next_words = dict()
-    find_ending = False
-    plus_len = 0
-    for c in wrong_chars:
-        if c == u' ':
-            plus_len = 1
-    list_cor_hyp = [[-1, pos, ""]]
-    while len(list_cor_hyp) != 0:
-        #Cogemos el ultimo elemento de la lista
-        element = list_cor_hyp.pop()
-        # Lo separamos en sus tres valores
-        c_last = element[0]
-        c_pos = element[1]
-        c_pre = element[2]
-        # Comprobamos si ya existe el diccionario de la posicion actual
-        if valid_next_words.get(c_pos) == None:
-            valid_next_words[c_pos] = dict()
-        valid_list = valid_next_words.get(c_pos)
-        # Comprobamos si ya existe la lista de palabras para el prefijo pasado
-        if valid_list.get(c_last) == None:
-            valid_list[c_last] = []
-        # Comprobamos que palabras pueden seguir el prefijo que hemos conseguido hasta ahora
-        for w in word2index_y:
-            # Formamos la palabra entera PREFIJO + ACTUAL
-            last = True
-            if w[-2:] == bpe_separator: 
-                word = c_pre +  w[:-2]
-                last = False
-            else:
-                word = c_pre + w
-            # Si la palabra formada actual ya es mas larga que la objetivo
-            if len(word) >= len(last_word) + plus_len:
-                if word[:len(last_word)] == last_word:
-                    if len(word) == len(last_word) + plus_len: 
-                        w = word2index_y[w]
-                        valid_list[c_last].append(w)
-                        find_ending = True
-                    else: 
-                        correct = True
-                        for c in wrong_chars:
-                            if word[len(last_word)] == c:
-                                correct = False
-                                break
-                        if correct:
-                            w = word2index_y[w]
-                            valid_list[c_last].append(w)
-                            find_ending = True
-            # En caso contrario nos tocara continuar
-            elif not last:
-                if last_word[:len(word)] == word:
-                    #Anyadimos el elemento
-                    w = word2index_y[w]
-                    valid_list[c_last].append(w)
-                    list_cor_hyp.append([w, c_pos+1, word])
-
-    if not find_ending:
-        return None
-    else:
-        return valid_next_words
-"""
 def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_chars=[]):
+    """
+    Description
+    :param pos:
+    :param word2index_y:
+    :param last_word:
+    :param bpe_separator:
+    :param wrong_chars:
+    :return:
+    """
+
     find_ending = False
     valid_next_words = dict()
     prefix = dict()
 
+    # Create the starting dictionary of subwords for the position "pos"
     if valid_next_words.get(pos) == None:
         valid_next_words[pos] = dict()
 
+    # Check if the space appear as a wrong char
     plus_len = 0
     for c in wrong_chars:
         if c == u' ':
             plus_len = 1
+            break
 
+    # Insert the empty element
     prefix[""] = valid_next_words[pos]
     list_cor_hyp = [[None, valid_next_words[pos], "", -1]]
     while len(list_cor_hyp) != 0:
-        # Cogemos el ultimo elemento de la lista
+        # Take the last element of the list
         element = list_cor_hyp.pop()
+
         # Lo separamos en sus tres valores
         c_dict = element[0]
         c_father = element[1]
         c_pre = element[2]
         c_word = element[3]
 
-
-        # Comprobamos que palabras pueden seguir el prefijo que hemos conseguido hasta ahora
         for w in word2index_y:
-            #Formamos la palabra entera PREFIJO + ACTUAL
+            # Create the new prefix of the word C_PRE + W
             last = True
             if w[-2:] == bpe_separator: 
                 word = c_pre +  w[:-2]
                 last = False
             else:
                 word = c_pre + w
-            # Si la palabra formada actual ya es mas larga que la objetivo
+
+            # Check if the length of the word is larger than the minimum needed
             if len(word) >= len(last_word) + plus_len:
                 if word[:len(last_word)] == last_word:
                     if len(word) == len(last_word) + plus_len: 
@@ -178,16 +130,15 @@ def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_cha
                             w = word2index_y[w]
                             c_father[w] = dict()
                             find_ending = True
-            # En caso contrario nos tocara continuar
             elif not last:
-                # Si la parte inicial de la palabra coincide con nuestra palabra
+                # Check the prefix of the word
                 if last_word[:len(word)] == word:
                     w = word2index_y[w]
-                    # Comprobamos si el prefijo ya se encuentra en nuestro diccionario
+
                     if prefix.get(word) != None:
                         c_father[w] = prefix[word]
                     else:
-                        #Anyadimos el elemento
+                        # Add the element
                         new_dict = dict()
                         prefix[word] = new_dict
                         c_father[w] = new_dict
@@ -205,8 +156,10 @@ def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, pa
                                      index2word_y, sources, heuristic, mapping, unk_indices, unk_words, unks_in_isles):
     """
     Generates and decodes a user-constrained hypothesis given a source sentence and the user feedback signals.
+    :param beam_searcher:
     :param src_seq: Sequence of indices of the source sentence to translate.
     :param fixed_words_user: Dict of word indices fixed by the user and its corresponding position: {pos: idx_word}
+    :param params:
     :param args: Simulation options
     :param isle_indices: Isles fixed by the user. List of (isle_index, [words])
     :param filtered_idx2word: Dictionary of possible words according to the current word prefix.
@@ -216,6 +169,7 @@ def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, pa
     :param mapping: Source--Target dictionary for Unk replacement strategies 1 and 2
     :param unk_indices: Indices of the hypothesis that contain an unknown word (introduced by the user)
     :param unk_words: Corresponding word for unk_indices
+    :param unk_in_isles:
     :return: Constrained hypothesis
     """
 
@@ -560,8 +514,6 @@ def interactive_simulation():
                             Exception(NotImplementedError, 'Segment-based interaction at'
                                                            ' character level is still unimplemented')
 
-                        ############################################################
-                        # COMPROBACION DE QUE HEMOS TERMINADO
                         # 2.2.2 Compute longest common character prefix (LCCP)
                         next_correction_pos, validated_prefix = common_prefix(hypothesis, reference)
                         if next_correction_pos == len(reference):
@@ -575,37 +527,6 @@ def interactive_simulation():
                         
 
                         if mouse_action_counter > args.ma:
-                            """
-                            # 2.2.3 Get next correction by checking against the refence
-                            next_correction = reference[next_correction_pos]
-
-                            
-                            # 2.2.4 Tokenize the prefix properly
-                            tokenized_validated_prefix = tokenize_f(validated_prefix + next_correction)
-
-                            # 2.2.5. Validate words
-                            for pos, word in enumerate(tokenized_validated_prefix.split()):
-                                fixed_words_user[pos] = word2index_y.get(word, unk_id)
-                                if word2index_y.get(word) is None:
-                                    unk_words_dict[pos] = word
-
-                            ############################################################
-                            # GENERAMOS LA LISTA DE PALABRAS POSIBLES EN EL ULTIMO LUGAR
-                            # AUNQUE SEA UN DICCIONARIO REALMENTE ESTAMOS PASANDO UNA LISTA DE KEYS (INDEX DE LAS PALABRAS)
-                            # 2.2.6 Constrain search for the last word
-                            tokenized_validated_prefix = tokenize_f(validated_prefix + next_correction)
-
-                            last_user_word_pos = list(fixed_words_user.keys())[-1]
-                            if next_correction != u' ':
-                                last_user_word = tokenized_validated_prefix.split()[-1]
-                                filtered_idx2word = dict((word2index_y[candidate_word], candidate_word)
-                                                         for candidate_word in word2index_y if
-                                                         candidate_word[:len(last_user_word)] == last_user_word)
-                                if filtered_idx2word != dict():  
-                                    del fixed_words_user[last_user_word_pos]
-                                    if last_user_word_pos in unk_words_dict.keys():
-                                        del unk_words_dict[last_user_word_pos]
-                            """
 
                             # 2.2.4 Tokenize the prefix properly
                             # Separamos el string validado en tokens separados por espacios
@@ -681,57 +602,6 @@ def interactive_simulation():
                             else:
                                 # Al enviar un valor diferente de None el tamanyo minimo de la frase aumentara en 1
                                 filtered_idx2word = dict()
-                            """
-                            someone = False
-                            wrong_char = hypothesis[next_correction_pos]
-                            list_cor_hyp = [[-1, pos, ""]]
-                            while len(list_cor_hyp) != 0:
-                                element = list_cor_hyp.pop()
-
-                                c_last = element[0]
-                                c_pos = element[1]
-                                c_pre = element[2]
-
-                                if wrong_words.get(c_pos) == None:
-                                    wrong_words[c_pos] = dict()
-                                ww_list = wrong_words.get(c_pos)
-
-                                if ww_list.get(c_last) == None:
-                                    ww_list[c_last] = []
-
-
-                                for w in word2index_y:
-                                    if w[-2:] == bpe_separator: 
-                                        word = c_pre +  w[:-2]
-                                    else:
-                                        word = c_pre + w
-
-                                    if len(word) >= len(last_word):
-                                        if word[:len(last_word)] == last_word:
-                                            if len(word) == len(last_word) or word[len(last_word)] != wrong_char:    
-                                                w = word2index_y[w]
-                                                ww_list[c_last].append(w)
-                                                someone = True
-                                    else:
-                                        if last_word[:len(word)] == word:
-                                            w = word2index_y[w]
-                                            ww_list[c_last].append(w)
-                                            list_cor_hyp.append([w, c_pos+1, word])
-
-                            if not someone:
-                                fixed_words_user[pos] = word2index_y.get(last_word, unk_id)
-                                if word2index_y.get(last_word) is None:
-                                        unk_words_dict[pos] = last_word
-                            """
-
-
-                            #for pos in filtered_idx2word.keys():
-                            #    logger.debug(f"Wrong pos: {pos}")
-                            #    for pre in filtered_idx2word[pos].keys():
-                            #        if len(filtered_idx2word[pos][pre]) > 5:
-                            #            logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in filtered_idx2word[pos][pre][:5]]))
-                            #        else:
-                            #            logger.debug(str(index2word_y.get(pre, 0)) + ": " + str([index2word_y[w] for w in filtered_idx2word[pos][pre]]))
                             
                             logger.debug(u'to character %d.' % ( next_correction_pos))  
                             logger.debug([index2word_y[w] for w in fixed_words_user.values()])                 

@@ -25,10 +25,6 @@ from nmt_keras.online_models import build_online_models
 from utils.utils import update_parameters
 from sys import version_info
 
-# InteractiveBeamSearchSampler
-# sample_beam_search_interactive
-
-# decode_predictions_beam_search
 
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(asctime)s] %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
@@ -38,6 +34,7 @@ logger.setLevel(2)
 
 def check_params(parameters):
     assert parameters['BEAM_SEARCH'], 'Only beam search is supported.'
+
 
 
 def parse_args():
@@ -76,8 +73,10 @@ def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, pa
                                     index2word_y, sources, heuristic, mapping, unk_indices, unk_words, unks_in_isles, unk_id=1):
     """
     Generates and decodes a user-constrained hypothesis given a source sentence and the user feedback signals.
+    :param beam_searcher:
     :param src_seq: Sequence of indices of the source sentence to translate.
     :param fixed_words_user: Dict of word indices fixed by the user and its corresponding position: {pos: idx_word}
+    :param params:
     :param args: Simulation options
     :param isle_indices: Isles fixed by the user. List of (isle_index, [words])
     :param filtered_idx2word: Dictionary of possible words according to the current word prefix.
@@ -87,8 +86,11 @@ def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, pa
     :param mapping: Source--Target dictionary for Unk replacement strategies 1 and 2
     :param unk_indices: Indices of the hypothesis that contain an unknown word (introduced by the user)
     :param unk_words: Corresponding word for unk_indices
+    :param unk_in_isles:
+    :param unk_id:
     :return: Constrained hypothesis
     """
+    
     # Generate a constrained hypothesis
     trans_indices, costs, alphas = beam_searcher. \
         sample_beam_search_interactive(src_seq,
@@ -139,11 +141,7 @@ def generate_constrained_hypothesis(beam_searcher, src_seq, fixed_words_user, pa
 
     return hypothesis
 
-###################################################################################################################
-###################################################################################################################
-######################## START
-###################################################################################################################
-###################################################################################################################
+
 def interactive_simulation():
 
     args = parse_args()
@@ -346,8 +344,6 @@ def interactive_simulation():
                 if args.online:
                     logging.info("Params training = " + str(params_training))
 
-            ###################################################################################################
-            # EMPEZAMOS A TRADUCIR ORACION A ORACION
             # Start to translate the source file interactively
             for n_line, src_line in enumerate(fsrc):
 
@@ -420,19 +416,13 @@ def interactive_simulation():
                 hypothesis = hypothesis.split()
                 encoded_hypothesis = encoded_hypothesis.split()
 
-                #######################################################################################
-                # EMPEZAMOS CON LA PARTE INTERACTIVE
                 # 2.0 Interactive translation
                 if hypothesis == reference:
 
-                    ############################################################
-                    # ORACION CORRECTA
                     # 2.1 If the sentence is correct, we  validate it
                     pass
                 else:
 
-                    ############################################################
-                    # INCORRECTA, HAY QUE CORREGIR
                     # 2.2 Wrong hypothesis -> Interactively translate the sentence
                     checked_index_r = 0
                     checked_index_h = 0
@@ -448,8 +438,6 @@ def interactive_simulation():
                         validated_prefix = []
                         correction_made = False
 
-                        ###########################################################
-                        # SI NO ESTA ACTIVADO LOS PREFIJOS ASUMIMOS POR ISLAS
                         # Stage 1: Isles selection
                         #   1. Select the multiple isles in the hypothesis.
                         if not args.prefix:
@@ -485,14 +473,10 @@ def interactive_simulation():
                             mouse_actions_sentence += compute_mouse_movements(isle_indices,
                                                                               old_isles,
                                                                               last_checked_index)
-                        ##############################################################
-                        # AL SER PREFIJOS NO SACAMOS ISLAS
                         else:
                             isle_indices = []
                             unks_in_isles = []
 
-                        ###################################################################
-                        # Stage 2: INMT
                         # From left to right, we will correct the hypotheses, taking into account the isles info
                         # At each timestep, the user can make two operations:
                         # Insertion of a new word at the end of the hypothesis
@@ -523,23 +507,19 @@ def interactive_simulation():
                                     if checked_index_h - last_checked_index >= 1:
                                         mouse_actions_sentence += 1
 
-                                    # COSTE DE ESCRIBIR LA PALABRA ORIGINAL
                                     keystrokes_sentence += new_word_len
 
                                     # Substitution
                                     new_word_indices = [word2index_y.get(word, unk_id) for word in new_words]
                                     validated_prefix.append(new_word_indices)
 
-                                    # SE ANYADEN OTRA COSAS EN OTRO LUGAR
                                     for n_word, new_subword in enumerate(new_words):
                                         fixed_words_user[checked_index_h + BPE_offset + n_word] = new_word_indices[n_word]
-                                        # MIRAMOS SI LA NUEVAS SUBPALABRAS SON DESCONOCIDAS
                                         if word2index_y.get(new_subword) is None:
                                             if checked_index_h + BPE_offset + n_word not in unk_indices:
                                                 unk_words.append(new_subword)
                                                 unk_indices.append(checked_index_h + BPE_offset + n_word)
 
-                                    # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECCION Y SALIMOS DEL BUCLE
                                     correction_made = True
                                     logger.debug(u'"%s" to position %d' % (new_word, checked_index_h))
                                     
@@ -547,7 +527,6 @@ def interactive_simulation():
                                         last_checked_index = checked_index_h
                                     break
                                 else:
-                                    # ANYADIMOS 1 ERROR / 1 ERROR QUE HA TENIDO QUE SER CORREGIDO
                                     #errors_sentence += 1
                                     mouse_actions_sentence += 1
                                     wrong_words_counter += 1    
@@ -555,7 +534,6 @@ def interactive_simulation():
                                     last_correct_pos = checked_index_h
 
                                     # Substitution
-                                    # ANYADIMOS LA PALABRA INCORRECTA A LA LISTA DE LAS EXCLUIDAS
                                     if checked_index_h >= len(hypothesis):
                                         hypo_words_indices = [0]
                                         word_error = 'eos_sym'
@@ -567,7 +545,6 @@ def interactive_simulation():
                                         hypo_words_indices = [word2index_y.get(word, unk_id) for word in hypo_words]
                                         word_error = hypothesis[checked_index_h]
 
-                                    # SE ANYADEN OTRA COSAS EN OTRO LUGAR
                                     last_word = -1
                                     for n_word, new_subword in enumerate(hypo_words_indices):
                                         
@@ -587,7 +564,6 @@ def interactive_simulation():
                                         for pre in wrong_words[pos].values():
                                             logger.debug("Excluded words: " + str([index2word_y[w] for w in pre]))
 
-                                    # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECCION Y SALIMOS DEL BUCLE
                                     correction_made = True
                                     logger.debug(u'Wrong "%s" in position %d' % (word_error, checked_index_h))
                                     
@@ -603,12 +579,10 @@ def interactive_simulation():
                                 else:
                                     correct_words_h = tokenize_f(str(hypothesis[checked_index_h].encode('utf-8'), 'utf-8')).split()  # if params_prediction['apply_tokenization'] else [reference[checked_index_h]]
                                
-                                # SE ANYADE LA NUEVA PALABRA A LA LISTA DE PREFIJO CORRECTO
                                 new_word_indices = [word2index_y.get(word, unk_id) for word in correct_words_h]
                                 validated_prefix.append(new_word_indices)
                                 for n_word, new_subword in enumerate(new_words):
                                     fixed_words_user[checked_index_h + BPE_offset + n_word] = new_word_indices[n_word]
-                                    # MIRAMOS SI LA NUEVAS SUBPALABRAS SON DESCONOCIDAS
                                     if word2index_y.get(new_subword) is None:
                                         if checked_index_h + BPE_offset + n_word not in unk_indices:
                                             unk_words.append(new_subword)
@@ -616,172 +590,13 @@ def interactive_simulation():
 
                                 if checked_index_h > last_checked_index:
                                     last_checked_index = checked_index_h
-                                # PASAMOS A INTENTAR LEER LA SIGUIENTE LINEA
                                 checked_index_h += 1
                                 checked_index_r += 1
                                 BPE_offset += len(new_word_indices) - 1
-
-                            """
-                            ###############################################################################
-                            # LA FRASE DE REFERENCIA ES MAS LARGA QUE LA DE HIPOTESIS
-                            if checked_index_h >= len(hypothesis):
-                                # Insertions (at the end of the sentence)
-                                # LA HIPOTESIS ES MAS CORTA QUE LA REFERENCIA POR LO QUE HAY QUE REALIZAR CAMBIOS // 
-                                errors_sentence += 1
-
-                                # 2.2.9 Add a mouse action if we moved the pointer
-                                # PUES ESO, SI SE MUEVE EL RATON PENALIZAR
-                                if checked_index_h - last_checked_index > 1:
-                                    mouse_actions_sentence += 1
-
-                                # COSTE DE ESCRIBIR LA PALABRA
-                                keystrokes_sentence += new_word_len
-
-                                #ANYADIMOS LA PALABRA CORRECTA A LA LISTA
-                                new_word_indices = [word2index_y.get(word, unk_id) for word in new_words]
-                                validated_prefix.append(new_word_indices)
-
-                                # SE ANYADEN OTRAS COSAS EN OTRO LUGAR
-                                for n_word, new_subword in enumerate(new_words):
-                                    fixed_words_user[checked_index_h + BPE_offset + n_word] = new_word_indices[n_word]
-                                    # MIRAMOS SI LA NUEVAS SUBPALABRAS SON DESCONOCIDAS
-                                    if word2index_y.get(new_subword) is None:
-                                        if checked_index_h + BPE_offset + n_word not in unk_indices:
-                                            unk_words.append(new_subword)
-                                            unk_indices.append(checked_index_h + BPE_offset + n_word)
-
-                                # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECTION Y SALIMOS DEL BUCLE
-                                correction_made = True
-                                logger.debug(u'"%s" to position %d (end-of-sentence)' % (new_word, checked_index_h))
-                                
-                                if checked_index_h > last_checked_index:
-                                    last_checked_index = checked_index_h
-                                break
-
-                            elif hypothesis[checked_index_h] != reference[checked_index_r] and wrong_words_counter >= args.ma:
-                                wrong_words = dict()
-                                wrong_words_counter = 0
-                                errors_sentence += 1
-
-                                if checked_index_h - last_checked_index >= 1:
-                                    mouse_actions_sentence += 1
-
-                                
-                                # COSTE DE ESCRIBIR LA PALABRA ORIGINAL
-                                keystrokes_sentence += new_word_len
-
-                                # Substitution
-                                new_word_indices = [word2index_y.get(word, unk_id) for word in new_words]
-                                validated_prefix.append(new_word_indices)
-
-                                # SE ANYADEN OTRA COSAS EN OTRO LUGAR
-                                for n_word, new_subword in enumerate(new_words):
-                                    fixed_words_user[checked_index_h + BPE_offset + n_word] = new_word_indices[n_word]
-                                    # MIRAMOS SI LA NUEVAS SUBPALABRAS SON DESCONOCIDAS
-                                    if word2index_y.get(new_subword) is None:
-                                        if checked_index_h + BPE_offset + n_word not in unk_indices:
-                                            unk_words.append(new_subword)
-                                            unk_indices.append(checked_index_h + BPE_offset + n_word)
-
-                                # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECCION Y SALIMOS DEL BUCLE
-                                correction_made = True
-                                logger.debug(u'"%s" to position %d' % (new_word, checked_index_h))
-                                
-                                if checked_index_h > last_checked_index:
-                                    last_checked_index = checked_index_h
-                                break
-                            ###############################################################################
-                            # LAS PALABRAS DE HIPOTESIS Y REFERENCIA COMPARADAS SON DIFERENTES
-                            elif hypothesis[checked_index_h] != reference[checked_index_r]:
-                                # ANYADIMOS 1 ERROR / 1 ERROR QUE HA TENIDO QUE SER CORREGIDO
-                                #errors_sentence += 1
-                                mouse_actions_sentence += 1
-                                wrong_words_counter += 1    
-
-                                #if checked_index_h - last_checked_index > 1:
-                                #    mouse_actions_sentence += 1
-
-                                last_correct_pos = checked_index_h
-
-                                # Substitution
-                                # ANYADIMOS LA PALABRA INCORRECTA A LA LISTA DE LAS EXCLUIDAS
-                                if version_info[0] < 3:
-                               	    hypo_words = tokenize_f(hypothesis[checked_index_h].encode('utf-8')).split()
-                                else:
-                                    hypo_words = tokenize_f(str(hypothesis[checked_index_h].encode('utf-8'), 'utf-8')).split()
-                                
-                                hypo_words_indices = [word2index_y.get(word, unk_id) for word in hypo_words]
-
-                                # SE ANYADEN OTRA COSAS EN OTRO LUGAR
-                                last_word = -1
-                                for n_word, new_subword in enumerate(hypo_words_indices):
-                                    
-                                    pos = checked_index_h + BPE_offset + n_word
-                                    if wrong_words.get(pos) == None:
-                                        wrong_words[pos] = dict()
-
-                                    ww_list = wrong_words.get(pos)
-                                    if ww_list.get(last_word) == None:
-                                        ww_list[last_word] = []
-                                    ww_list[last_word].append(new_subword)
-                                    
-                                    last_word = new_subword
-                                
-                                for pos in wrong_words.keys():
-                                    logger.debug("Wrong pos: " + str(pos))
-                                    for pre in wrong_words[pos].values():
-                                        logger.debug("Excluded words: " + str([index2word_y[w] for w in pre]))
-
-                                # MARCAMOS QUE HEMOS TENIDO QUE HACER UNA CORRECCION Y SALIMOS DEL BUCLE
-                                correction_made = True
-                                logger.debug(u'Wrong "%s" in position %d' % (hypothesis[checked_index_h], checked_index_h))
-                                
-                                if checked_index_h > last_checked_index:
-                                    last_checked_index = checked_index_h
-                                break
-                            ###############################################################################
-                            # LAS PALABRAS DE HIPOTESIS Y REFERENCIA COMPARADAS CON IGUALES
-                            else:
-                                
-                                wrong_words = dict()
-                                wrong_words_counter = 0
-
-                                if version_info[0] < 3:  # Execute different code for python 2 or 3
-                                    correct_words_h = tokenize_f(hypothesis[checked_index_h].encode('utf-8')).split()  # if params_prediction['apply_tokenization'] else [reference[checked_index_h]]
-                                else:
-                                    correct_words_h = tokenize_f(str(hypothesis[checked_index_h].encode('utf-8'), 'utf-8')).split()  # if params_prediction['apply_tokenization'] else [reference[checked_index_h]]
-                               
-                                # SE ANYADE LA NUEVA PALABRA A LA LISTA DE PREFIJO CORRECTO
-                                new_word_indices = [word2index_y.get(word, unk_id) for word in correct_words_h]
-                                validated_prefix.append(new_word_indices)
-
-                                # SE ANYADEN OTRAS COSAS EN OTRO LUGAR...
-                                for n_word, new_subword in enumerate(new_words):
-                                    fixed_words_user[checked_index_h + BPE_offset + n_word] = new_word_indices[n_word]
-                                    # MIRAMOS SI LA NUEVAS SUBPALABRAS SON DESCONOCIDAS
-                                    if word2index_y.get(new_subword) is None:
-                                        if checked_index_h + BPE_offset + n_word not in unk_indices:
-                                            unk_words.append(new_subword)
-                                            unk_indices.append(checked_index_h + BPE_offset + n_word)
-
-                                if checked_index_h > last_checked_index:
-                                    last_checked_index = checked_index_h
-                                # PASAMOS A INTENTAR LEER LA SIGUIENTE LINEA
-                                checked_index_h += 1
-                                checked_index_r += 1
-                                BPE_offset += len(new_word_indices) - 1
-                            """   
-
-                            #### END IFELSE
-                            ####################################################################################
-                        #### END WHILE
-                        ######################################################################################## 
 
                         old_isles = [isle[1] for isle in isle_indices]
                         old_isles.append(validated_prefix)
 
-                        ######################################################################################
-                        # SI SE HA TENIDO QUE HACER UN CAMBIO TENEMOS QUE HACER UNA NUEVA CORRECCION
                         # Generate a new hypothesis
                         if correction_made:
                             logger.debug("")
@@ -841,15 +656,8 @@ def interactive_simulation():
                             logger.debug("Hypo_%d: %s" % (hypothesis_number, hypothesis))
                             hypothesis = hypothesis.split()
                         
-                        #############################################################
-                        # SI LA HIPOTESIS YA ES IGUAL QUE LA REFERENCIA SALIMOS
-                        # NO VALDRIA CON ELSE ¿?
                         if hypothesis == reference:
                             break
-
-                    #### END WHILE
-                    ############################################################################################
-
 
                     # Final check: The reference is a subset of the hypothesis: Cut the hypothesis
                     if len(reference) < len(hypothesis):
