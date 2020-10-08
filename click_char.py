@@ -67,18 +67,21 @@ def parse_args():
 
 def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_chars=[]):
     """
-    Description
-    :param pos:
-    :param word2index_y:
-    :param last_word:
-    :param bpe_separator:
-    :param wrong_chars:
-    :return:
+    Searches all the valid words for a last_word and a list of wrong_chars to continue it
+    :param pos: Position on the hypothesis of the last word
+    :param word2index_y: Dictionary to convert words to indeces
+    :param last_word: Word to correct
+    :param bpe_separator: Combination of characters used by the BPE to mark all the non end subwords
+    :param wrong_chars: List of wrong chars to continue the last_word
+    :return: Dictionary of valid next words
     """
 
     find_ending = False
     valid_next_words = dict()
     prefix = dict()
+    
+    # As we need a dictionary for the end words, all of them will refer this empty dictionary
+    empty_dict = dict()
 
     # Create the starting dictionary of subwords for the position "pos"
     if valid_next_words.get(pos) == None:
@@ -113,36 +116,32 @@ def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_cha
             else:
                 word = c_pre + w
 
-            # Check if the length of the word is larger than the minimum needed
-            if len(word) >= len(last_word) + plus_len:
-                if word[:len(last_word)] == last_word:
-                    if len(word) == len(last_word) + plus_len: 
-                        w = word2index_y[w]
-                        c_father[w] = dict()
-                        find_ending = True
-                    else: 
-                        correct = True
-                        for c in wrong_chars:
-                            if word[len(last_word)] == c:
-                                correct = False
-                                break
-                        if correct:
-                            w = word2index_y[w]
-                            c_father[w] = dict()
-                            find_ending = True
-            elif not last:
-                # Check the prefix of the word
-                if last_word[:len(word)] == word:
-                    w = word2index_y[w]
+            # Check if the new prefix is contained in the last_word
+            if not (last_word[:len(word)] == word or word[:len(last_word)] == last_word):
+                continue
 
-                    if prefix.get(word) != None:
-                        c_father[w] = prefix[word]
-                    else:
-                        # Add the element
-                        new_dict = dict()
-                        prefix[word] = new_dict
-                        c_father[w] = new_dict
-                        list_cor_hyp.append([c_father, new_dict, word, w])
+            # Check if the length of the word is equal or larger than the minimum needed
+            index_w = word2index_y[w]
+            if len(word) == len(last_word) + plus_len:
+                c_father[index_w] = empty_dict
+                find_ending = True
+            
+            elif len(word) > len(last_word) + plus_len:
+                if word[len(last_word)] in wrong_chars:
+                    continue
+
+                c_father[index_w] = empty_dict
+                find_ending = True
+
+            elif not last:
+                if prefix.get(word) != None:
+                    c_father[index_w] = prefix[word]
+                else:
+                    # Add the element
+                    new_dict = dict()
+                    prefix[word] = new_dict
+                    c_father[index_w] = new_dict
+                    list_cor_hyp.append([c_father, new_dict, word, index_w])
 
         if not c_father and c_dict is not None:
             c_dict.pop(c_word)
@@ -526,10 +525,9 @@ def interactive_simulation():
                             excluded_chars = []
                         
 
-                        if mouse_action_counter > args.ma:
+                        if mouse_action_counter >= args.ma:
 
                             # 2.2.4 Tokenize the prefix properly
-                            # Separamos el string validado en tokens separados por espacios
                             next_correction = reference[next_correction_pos]
                             validated_prefix +=  next_correction
                             tokenized_validated_prefix = validated_prefix.split()
@@ -541,7 +539,6 @@ def interactive_simulation():
                                 last_word = ""
 
                             # 2.2.5 Validate words
-                            # Anyadimos todas las palabras menos la ultima a las palabras fijas
                             pos = 0
                             for fixed_word in tokenized_validated_prefix: 
                                 new_words = tokenize_f(fixed_word).split()
@@ -569,7 +566,6 @@ def interactive_simulation():
 
 
                             # 2.2.4 Tokenize the prefix properly
-                            # Separamos el string validado en tokens separados por espacios
                             tokenized_validated_prefix = validated_prefix.split()
 
                             if len(tokenized_validated_prefix) > 0 and hypothesis[next_correction_pos -1] != ' ': 
@@ -579,7 +575,6 @@ def interactive_simulation():
                                 last_word = ""
 
                             # 2.2.5 Validate words
-                            # Anyadimos todas las palabras menos la ultima a las palabras fijas
                             pos = 0
                             for fixed_word in tokenized_validated_prefix: 
                                 new_words = tokenize_f(fixed_word).split()
@@ -591,7 +586,6 @@ def interactive_simulation():
                                     pos += 1 
 
 
-                            # Anyadimos como posibles palabras todas aquellas que cumplen el prefijo y no tienen la otra letra
                             if next_correction_pos < len(hypothesis):
                                 excluded_chars.append(hypothesis[next_correction_pos])
                                 print(excluded_chars)
@@ -600,7 +594,6 @@ def interactive_simulation():
                                     fixed_words_user[pos] = word2index_y.get(unk_id)
                                     nk_words_dict[pos] = last_word
                             else:
-                                # Al enviar un valor diferente de None el tamanyo minimo de la frase aumentara en 1
                                 filtered_idx2word = dict()
                             
                             logger.debug(u'to character %d.' % ( next_correction_pos))  
