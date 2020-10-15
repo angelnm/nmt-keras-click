@@ -535,9 +535,9 @@ def interactive_simulation():
 							new_words[-1] = new_words[-1][:-2]
 						
 						if checked_index_h >= len(hypothesis):
-							incorrect_words.append( 'word': CM.END_P,
+							incorrect_words.append({'word': CM.END_P,
 													'pos':  BPE_offset,
-													'len':	len(encoded_hypothesis))
+													'len':	len(encoded_hypothesis)})
 							# Insertions (at the end of the sentence)
 							errors_sentence += 1
 							# 2.2.9 Add a mouse action if we moved the pointer
@@ -562,9 +562,9 @@ def interactive_simulation():
 							break
 						elif hypothesis[checked_index_h] != reference[checked_index_r]:
 
-							incorrect_words.append( 'word': hypothesis[checked_index_r],
+							incorrect_words.append({'word': hypothesis[checked_index_r],
 													'pos':  BPE_offset,
-													'len':  len(encoded_hypothesis))
+													'len':  len(encoded_hypothesis)})
 							errors_sentence += 1
 							mouse_actions_sentence += 1
 							if checked_index_h - last_checked_index > 1:
@@ -589,9 +589,9 @@ def interactive_simulation():
 							BPE_offset += len(new_word_indices) - 1
 							break
 						else:
-							correct_words.append(   'word': hypothesis[checked_index_r],
+							correct_words.append({  'word': hypothesis[checked_index_r],
 													'pos':  BPE_offset,
-													'len':  len(encoded_hypothesis))
+													'len':  len(encoded_hypothesis)})
 							# No errors
 							if version_info[0] < 3:  # Execute different code for python 2 or 3
 								correct_words_h = tokenize_f(hypothesis[checked_index_h].encode('utf-8')).split()  # if params_prediction['apply_tokenization'] else [reference[checked_index_h]]
