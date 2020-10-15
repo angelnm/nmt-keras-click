@@ -1,5 +1,6 @@
 import sys
 import math
+import numpy as np
 from scipy.sparse import csr_matrix, load_npz
 
 class CM1:
@@ -282,8 +283,8 @@ class CM2:
 		"""
 		confidence = 0.0
 
-		for word_t in words_target:
-			value = math.log(max(self.get_confidence(words_source, word_t), 1e-10))
+		for pos, word_t in enumerate(words_target):
+			value = math.log(max(self.get_confidence(words_source, word_t, pos+1, len(words_target)), 1e-10))
 			confidence += value
 
 		len_sentence = len(words_target)
@@ -389,7 +390,7 @@ class CM2:
 
 	# =======================================================================================================
 
-	def no_word_alert(word):
+	def no_word_alert(self, word):
 		if self.verbose:
 			print(f"'{word}' isn't in the dictionary")
 

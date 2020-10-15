@@ -462,8 +462,8 @@ def interactive_simulation():
 
 				# 2. Check Confidence Sentence Measure
 				tokenized_input = tokenized_input.split()
-				tokenized_input.append(CM.END_P)
-				encoded_hypothesis.append(CM.END_P)
+				tokenized_input.append(CM2.END_P)
+				encoded_hypothesis.append(CM2.END_P)
 
 				correct_words = []
 				incorrect_words = []
@@ -535,7 +535,7 @@ def interactive_simulation():
 							new_words[-1] = new_words[-1][:-2]
 						
 						if checked_index_h >= len(hypothesis):
-							incorrect_words.append({'word': CM.END_P,
+							incorrect_words.append({'word': CM2.END_P,
 													'pos':  BPE_offset,
 													'len':	len(encoded_hypothesis)})
 							# Insertions (at the end of the sentence)

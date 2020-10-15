@@ -23,7 +23,7 @@ from keras_wrapper.utils import decode_predictions_beam_search, flatten_list_of_
 from nmt_keras.model_zoo import TranslationModel
 from nmt_keras.online_models import build_online_models
 from utils.utils import update_parameters
-from utils.confidence_measure import CM
+from utils.confidence_measure import CM1, CM2
 from sys import version_info
 
 from pycocoevalcap.bleu.bleu import Bleu
@@ -68,6 +68,7 @@ def parse_args():
 	parser.add_argument("-ma", type=int, default=0, help="Max number of mouse actions for the same position")
 
 	parser.add_argument("-cm", "--confidence_model", type=str, required=True, help="path to the model of the confidence measure")
+	parser.add_argument("-am", "--alignment_model",  type=str, required=True, help="path to the alignment model of the confidence measure")
 	parser.add_argument("-st", "--sentence_threshold", type=float, default=0.0, help="Sentence threshold")
 	parser.add_argument("-r", "--ratio", default=False, action='store_true', help="Ratio Confidence Measure")
 	parser.add_argument("-rt", "--ratio_threshold", type=float, default=0.0, help="Threshold for ratio mode")
@@ -300,7 +301,7 @@ def interactive_simulation():
 	unk_id = dataset.extra_words['<unk>']
 
 	# Load Confidence Measure Model
-	confidence_model = CM(args.confidence_model)
+	confidence_model = CM2(args.confidence_model, args.alignment_model)
 	sentence_threshold = args.sentence_threshold
 	word_threshold = args.word_threshold
 
@@ -455,13 +456,13 @@ def interactive_simulation():
 
 				# 2. Check Confidence Sentence Measure
 				tokenized_input = tokenized_input.split()
-				tokenized_input.append(CM.END_P)
-				#encoded_hypothesis.append(CM.END_P)
+				tokenized_input.append(CM2.END_P)
+				#encoded_hypothesis.append(CM2.END_P)
 				sentence_cm = get_sentence_cm(confidence_model, tokenized_input, encoded_hypothesis, args.ratio, args.ratio_threshold)
 
 
 
-				logger.debug(u"Confidence Measure: %.10f" % sentence_cm) 
+				logger.debug(u"Sentence confidence Measure: %.10f" % sentence_cm) 
 				if sentence_cm >= sentence_threshold:
 					# 2.1. If it is greater or equal than the threshold check it as correct
 					pass
@@ -485,7 +486,7 @@ def interactive_simulation():
 								hypo_word = ''
 								hypo_words = []
 
-								word_cm = confidence_model.get_confidence(tokenized_input, CM.END_P)
+								word_cm = confidence_model.get_confidence(tokenized_input, CM2.END_P, BPE_offset, len(encoded_hypothesis))
 								if word_cm < word_threshold:
 									correct_word = False
 							else:
@@ -496,11 +497,15 @@ def interactive_simulation():
 								else:
 									hypo_words = tokenize_f(str(hypo_word.encode('utf-8'), 'utf-8')).split()
 
-								correct_word = True
+								word_cm = 1.0
 								for w in hypo_words:
-									word_cm = confidence_model.get_confidence(tokenized_input, w)
-									if word_cm < word_threshold:
-										correct_word = False
+									confidence = confidence_model.get_confidence(tokenized_input, w, BPE_offset, len(encoded_hypothesis))
+									if confidence < word_cm:
+										word_cm = confidence
+
+								correct_word = True
+								if word_cm < word_threshold:
+									correct_word = False
 
 							if not correct_word:
 								# 2.6. The measure confidence of the word is lower than the threshold
@@ -553,7 +558,7 @@ def interactive_simulation():
 
 
 										# Show some info
-										logger.debug(u'"%s" to position %d' % (ref_word, checked_index_r))
+										logger.debug(u'"%s" to position %d: %.10f Confidence' % (ref_word, checked_index_r, word_cm))
 
 										break
 								else:
@@ -647,7 +652,7 @@ def interactive_simulation():
 							logger.debug("Target: %s" % ' '.join(reference))
 							logger.debug("Hypo_%d: %s" % (hypothesis_number, hypothesis))
 							hypothesis = hypothesis.split()
-							encoded_hypothesis.append(CM.END_P)
+							encoded_hypothesis.append(CM2.END_P)
 
 
 				# 3. Update user effort counters
