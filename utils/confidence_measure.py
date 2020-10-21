@@ -3,6 +3,11 @@ import math
 import numpy as np
 from scipy.sparse import csr_matrix, load_npz
 
+def log(val):
+	if val != 0:
+		return math.log(val)
+	return -math.inf
+
 class CM1:
 	DIC_EXT = 'txt'
 	MAT_EXT = 'npz'
@@ -284,7 +289,7 @@ class CM2:
 		confidence = 0.0
 
 		for pos, word_t in enumerate(words_target):
-			value = math.log(max(self.get_confidence(words_source, word_t, pos+1, len(words_target)), 1e-10))
+			value = log(self.get_confidence(words_source, word_t, pos+1, len(words_target)))
 			confidence += value
 
 		len_sentence = len(words_target)
@@ -343,14 +348,14 @@ class CM2:
 			self.no_word_alert(word_target)
 			return 0.0
 
-		max_prob = self.get_alignment_probability(0, target_pos, len(words_source), target_len) * self.get_lexicon_probability(CM2.END_P, word_target)
+		max_prob = log(self.get_alignment_probability(0, target_pos, len(words_source), target_len)) + log(self.get_lexicon_probability(CM2.END_P, word_target))
 		for pos, word in enumerate(words_source):
-			prob = self.get_alignment_probability(pos+1, target_pos, len(words_source), target_len) * self.get_lexicon_probability(word, word_target)
-
+			prob = log(self.get_alignment_probability(pos+1, target_pos, len(words_source), target_len)) + log(self.get_lexicon_probability(word, word_target))
 			if prob > max_prob:
 				max_prob = prob
 
-		return max_prob
+		print("LOG: " + str(max_prob))
+		return math.exp(max_prob)
 
 	def get_probability(self, word_source, word_target):
 		"""
