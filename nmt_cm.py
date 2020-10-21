@@ -563,7 +563,7 @@ def interactive_simulation():
 						elif hypothesis[checked_index_h] != reference[checked_index_r]:
 
 							incorrect_words.append({'word': hypothesis[checked_index_r],
-													'pos':  checked_index_h + BPE_offset,
+													'pos':  checked_index_h + BPE_offset +1,
 													'len':  len(encoded_hypothesis)})
 							errors_sentence += 1
 							mouse_actions_sentence += 1
@@ -590,7 +590,7 @@ def interactive_simulation():
 							break
 						else:
 							correct_words.append({  'word': hypothesis[checked_index_r],
-													'pos':  checked_index_h + BPE_offset,
+													'pos':  checked_index_h + BPE_offset +1,
 													'len':  len(encoded_hypothesis)})
 							# No errors
 							if version_info[0] < 3:  # Execute different code for python 2 or 3

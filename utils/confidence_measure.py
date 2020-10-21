@@ -354,7 +354,6 @@ class CM2:
 			if prob > max_prob:
 				max_prob = prob
 
-		print("LOG: " + str(max_prob))
 		return math.exp(max_prob)
 
 	def get_probability(self, word_source, word_target):
