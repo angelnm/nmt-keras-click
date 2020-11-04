@@ -23,7 +23,7 @@ from keras_wrapper.utils import decode_predictions_beam_search, flatten_list_of_
 from nmt_keras.model_zoo import TranslationModel
 from nmt_keras.online_models import build_online_models
 from utils.utils import update_parameters
-from utils.confidence_measure import CM1, CM2
+from utils.confidence_measure import CM, IBM1, IBM2
 from sys import version_info
 
 from pycocoevalcap.bleu.bleu import Bleu
@@ -301,9 +301,10 @@ def interactive_simulation():
 	unk_id = dataset.extra_words['<unk>']
 
 	# Load Confidence Measure Model
-	confidence_model = CM2(args.confidence_model, args.alignment_model)
+	confidence_model = IBM2(args.confidence_model, args.alignment_model)
 	sentence_threshold = args.sentence_threshold
-	word_thresholds = np.append(np.arange(0.0, 1.0, 1/args.word_threshold), 1.0)
+	#word_thresholds = np.append(np.arange(0.0, 1.0, 1/args.word_threshold), 1.0)
+	word_thresholds = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10]
 	logger.debug(args.word_threshold)
 	logger.debug(str(word_thresholds))
 
@@ -462,8 +463,8 @@ def interactive_simulation():
 
 				# 2. Check Confidence Sentence Measure
 				tokenized_input = tokenized_input.split()
-				tokenized_input.append(CM2.END_P)
-				encoded_hypothesis.append(CM2.END_P)
+				tokenized_input.append(CM.END_P)
+				encoded_hypothesis.append(CM.END_P)
 
 				correct_words = []
 				incorrect_words = []
@@ -535,9 +536,11 @@ def interactive_simulation():
 							new_words[-1] = new_words[-1][:-2]
 						
 						if checked_index_h >= len(hypothesis):
-							incorrect_words.append({'word': CM2.END_P,
-													'pos':  checked_index_h + BPE_offset,
-													'len':	len(encoded_hypothesis)})
+							#incorrect_words.append({'word': CM.END_P,
+							#						'pos':  checked_index_h + BPE_offset,
+							#						'len':	len(encoded_hypothesis)})
+							
+
 							# Insertions (at the end of the sentence)
 							errors_sentence += 1
 							# 2.2.9 Add a mouse action if we moved the pointer
@@ -561,9 +564,17 @@ def interactive_simulation():
 							BPE_offset += len(new_word_indices) - 1
 							break
 						elif hypothesis[checked_index_h] != reference[checked_index_r]:
+							word = []
+							pos = checked_index_h + BPE_offset
+							for w in encoded_hypothesis[pos:]:
+								if w[-2:] == bpe_separator:
+									word.append(w)
+								else:
+									word.append(w)
+									break
 
-							incorrect_words.append({'word': hypothesis[checked_index_r],
-													'pos':  checked_index_h + BPE_offset +1,
+							incorrect_words.append({'word': word,
+													'pos':  pos +1,
 													'len':  len(encoded_hypothesis)})
 							errors_sentence += 1
 							mouse_actions_sentence += 1
@@ -589,8 +600,17 @@ def interactive_simulation():
 							BPE_offset += len(new_word_indices) - 1
 							break
 						else:
-							correct_words.append({  'word': hypothesis[checked_index_r],
-													'pos':  checked_index_h + BPE_offset +1,
+							word = []
+							pos = checked_index_h + BPE_offset
+							for w in encoded_hypothesis[pos:]:
+								if w[-2:] == bpe_separator:
+									word.append(w)
+								else:
+									word.append(w)
+									break
+
+							correct_words.append({  'word': word,
+													'pos':  pos +1,
 													'len':  len(encoded_hypothesis)})
 							# No errors
 							if version_info[0] < 3:  # Execute different code for python 2 or 3
@@ -674,16 +694,11 @@ def interactive_simulation():
 					logger.debug("Cutting hypothesis")
 
 				# Check confidence measures
-				logger.debug(str([x['word'] for x in correct_words]))
-				logger.debug(str([x['word'] for x in incorrect_words]))
 				total_words_checked += len(correct_words) + len(incorrect_words)
 
+				logger.debug(str([x['word'] for x in correct_words]))
 				for element in correct_words:
 					word = element['word']
-					if version_info[0] < 3:  # Execute different code for python 2 or 3
-						word = tokenize_f(word.encode('utf-8')).split() 
-					else:
-						word = tokenize_f(str(word.encode('utf-8'), 'utf-8')).split()
 
 					val = 0
 					for idx, w in enumerate(word):
@@ -701,15 +716,12 @@ def interactive_simulation():
 							metrics[1] += 1
 							metrics[3] += 1
 
+				logger.debug(str([x['word'] for x in incorrect_words]))
 				for element in incorrect_words:
 					word = element['word']
-					if version_info[0] < 3:  # Execute different code for python 2 or 3
-						word = tokenize_f(word.encode('utf-8')).split() 
-					else:
-						word = tokenize_f(str(word.encode('utf-8'), 'utf-8')).split()
 
 					val = 0
-					for w in word:
+					for idx, w in enumerate(word):
 						word_cm = confidence_model.get_confidence(tokenized_input, w, element['pos']+idx, element['len'])
 						if word_cm > val:
 							val = word_cm
