@@ -7,6 +7,7 @@ import codecs
 import copy
 import logging
 import time
+import pandas as pd
 from collections import OrderedDict
 
 from keras_wrapper.model_ensemble import InteractiveBeamSearchSampler
@@ -23,7 +24,7 @@ from keras_wrapper.utils import decode_predictions_beam_search, flatten_list_of_
 from nmt_keras.model_zoo import TranslationModel
 from nmt_keras.online_models import build_online_models
 from utils.utils import update_parameters
-from utils.confidence_measure import CM, IBM1, IBM2
+from utils.confidence_measure import CM, IBM1, IBM2, Fast_Align
 from sys import version_info
 
 from pycocoevalcap.bleu.bleu import Bleu
@@ -65,16 +66,22 @@ def parse_args():
 	parser.add_argument("--models", nargs='+', required=True, help="path to the models")
 	parser.add_argument("-ch", "--changes", nargs="*", help="Changes to config, following the syntax Key=Value",
 						default="")
-	parser.add_argument("-ma", type=int, default=0, help="Max number of mouse actions for the same position")
+	parser.add_argument("-ma", "--max_mouse_actions", 	 type=int, 	 required=False, default=0, 	help="Max number of mouse actions for the same position")
 
-	parser.add_argument("-cm", "--confidence_model", type=str, required=True, help="path to the model of the confidence measure")
-	parser.add_argument("-am", "--alignment_model",  type=str, required=True, help="path to the alignment model of the confidence measure")
+	parser.add_argument("-est","--confidence_estimator", type=int,	 required=False, default=0, 	help="Confidence Estimator to use. 0-IBM1 | 1-IBM2 | 2-Fast_Align")
+	parser.add_argument("-lm", "--lexicon_model", 		 type=str, 	 required=True,  				help="path to the model of the confidence measure")
+	parser.add_argument("-am", "--alignment_model",  	 type=str, 	 required=True,  				help="path to the alignment model of the confidence measure")
 	#parser.add_argument("Mean or Ratio")
-	parser.add_argument("-st", "--sentence_threshold", type=float, default=1.0, help="Sentence threshold")
+	parser.add_argument("-st", "--sentence_threshold", 	 type=float, required=False, default=1.0, 	help="Sentence threshold")
 	#parser.add_argument("Ratio threshold")
-	parser.add_argument("-wt", "--word_threshold", type=int, default=2, help="Words threshold")
+	parser.add_argument("-wt", "--word_threshold", 		 type=int, 	 required=False, default=2, 	help="Words threshold")
 
 	return parser.parse_args()
+
+def export_csv(output_path, data):
+	# threshold, missclassified, tag_correct, tag_incorrect, CER
+	df = pd.DataFrame(data)
+	df.to_csv(output_path, index=False)
 
 def get_sentence_cm(confidence_model, reference, hypothesis, method=0, ratio=0.0):
 	sentence_cm = 0
@@ -301,12 +308,28 @@ def interactive_simulation():
 	unk_id = dataset.extra_words['<unk>']
 
 	# Load Confidence Measure Model
-	confidence_model = IBM2(args.confidence_model, args.alignment_model)
+	if args.confidence_estimator == 0:
+		confidence_model = IBM1(args.lexicon_model)
+	elif args.confidence_estimator == 1:
+		confidence_model = IBM2(args.lexicon_model, args.alignment_model)
+	elif args.confidence_estimator == 2:
+		confidence_model = Fast_Align(args.lexicon_model)
+	else:
+		exit()
+
 	sentence_threshold = args.sentence_threshold
-	#word_thresholds = np.append(np.arange(0.0, 1.0, 1/args.word_threshold), 1.0)
-	word_thresholds = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10]
+	#word_metrics['threshold'] = np.append(np.arange(0.0, 1.0, 1/args.word_threshold), 1.0)
+
+	word_metrics = {}
+	word_metrics['threshold'] 		= [1.0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-15, 1e-20, 1e-25, 1e-50, 0.0]
+	word_metrics['missclasified']	= [0 for x in word_metrics['threshold']]
+	word_metrics['tag_correct'] 	= [0 for x in word_metrics['threshold']]
+	word_metrics['tag_incorrect'] 	= [0 for x in word_metrics['threshold']]
+	word_metrics['CER']				= [0 for x in word_metrics['threshold']]
+
+
 	logger.debug(args.word_threshold)
-	logger.debug(str(word_thresholds))
+	logger.debug(str(word_metrics['threshold']))
 
 	# Initialize counters
 	total_errors = 0
@@ -316,11 +339,6 @@ def interactive_simulation():
 	total_keystrokes = 0
 	total_sentences = 0
 	total_wrong_sentences = 0
-
-	total_wrong_words = 0
-	total_cw = 0
-	total_ww = 0
-	word_metrics = [[th, total_wrong_words, total_cw, total_ww] for th in word_thresholds]
 	total_words_checked = 0
 
 	try:
@@ -707,14 +725,12 @@ def interactive_simulation():
 							val = word_cm
 
 
-					for metrics in word_metrics:
-						threshold = metrics[0]
-
+					for idx, threshold in enumerate(word_metrics['threshold']):
 						if val >= threshold:
-							metrics[2] += 1
+							word_metrics['tag_correct'][idx] += 1
 						else:
-							metrics[1] += 1
-							metrics[3] += 1
+							word_metrics['tag_incorrect'][idx] += 1
+							word_metrics['missclasified'][idx] += 1
 
 				logger.debug(str([x['word'] for x in incorrect_words]))
 				for element in incorrect_words:
@@ -726,15 +742,12 @@ def interactive_simulation():
 						if word_cm > val:
 							val = word_cm
 
-
-					for metrics in word_metrics:
-						threshold = metrics[0]
-
+					for idx, threshold in enumerate(word_metrics['threshold']):
 						if val >= threshold:
-							metrics[1] += 1
-							metrics[2] += 1
+							word_metrics['tag_correct'][idx] += 1
+							word_metrics['missclasified'][idx] += 1
 						else:
-							metrics[3] += 1
+							word_metrics['tag_incorrect'][idx] += 1
 
 				# 3. Update user effort counters
 				total_sentences += 1
@@ -764,27 +777,32 @@ def interactive_simulation():
 					logger.info(u"Current speed is {} per sentence".format((time.time() - start_time) / (n_line + 1)))
 					logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(total_sentences)))
 					logger.info(u"Total number of total classified words: %d" % (total_words_checked))
-					for metrics in word_metrics:
-						logger.info(u"Threshold: %f" % (metrics[0]))
-						logger.info(u"Total number of total wrong classified words: %d" % (metrics[1]))
-						logger.info(u"Total number of total correct words: %d" % (metrics[2]))
-						logger.info(u"Total number of total wrong words: %d" % (metrics[3]))
-						logger.info(u"Current word CER is: %f" % (float(metrics[1])/float(total_words_checked)))
+					
+					word_metrics['CER'] = [float(miss)/float(total_words_checked) for miss in word_metrics['missclasified']]
+					for threshold, miss, correct, incorrect, cer in zip(word_metrics['threshold'], word_metrics['missclasified'], word_metrics['tag_correct'], word_metrics['tag_incorrect'], word_metrics['CER']):
+						logger.info(u"Threshold: %f" % (threshold))
+						logger.info(u"Total number of total wrong classified words: %d" % (miss))
+						logger.info(u"Total number of total correct words: %d" % (correct))
+						logger.info(u"Total number of total wrong words: %d" % (incorrect))
+						logger.info(u"Current word CER is: %f" % (cer))
+					export_csv('./data_{}.csv'.format(n_line), word_metrics)
 
 					scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
 					for metric in scores_sentence:
 						logger.info("Current " + metric + " is: " + "{:.4f}".format(scores_sentence[metric]))
-		
+
 		# 6. Final!
 		# 6.1 Log some information
 		logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(total_sentences)))
 		logger.info(u"Total number of total classified words: %d" % (total_words_checked))
-		for metrics in word_metrics:
-			logger.info(u"Threshold: %f" % (metrics[0]))
-			logger.info(u"Total number of total wrong classified words: %d" % (metrics[1]))
-			logger.info(u"Total number of total correct words: %d" % (metrics[2]))
-			logger.info(u"Total number of total wrong words: %d" % (metrics[3]))
-			logger.info(u"Current word CER is: %f" % (float(metrics[1])/float(total_words_checked)))
+		word_metrics['CER'] = [float(miss)/float(total_words_checked) for miss in word_metrics['missclasified']]
+		for threshold, miss, correct, incorrect, cer in zip(word_metrics['threshold'], word_metrics['missclasified'], word_metrics['tag_correct'], word_metrics['tag_incorrect'], word_metrics['CER']):
+			logger.info(u"Threshold: %f" % (threshold))
+			logger.info(u"Total number of total wrong classified words: %d" % (miss))
+			logger.info(u"Total number of total correct words: %d" % (correct))
+			logger.info(u"Total number of total wrong words: %d" % (incorrect))
+			logger.info(u"Current word CER is: %f" % (cer))
+		export_csv('./data.csv', word_metrics)
 
 		scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
 		for metric in scores_sentence:
@@ -797,12 +815,14 @@ def interactive_simulation():
 		logger.debug (u'Interrupted!')
 		logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(total_sentences)))
 		logger.info(u"Total number of total classified words: %d" % (total_words_checked))
-		for metrics in word_metrics:
-			logger.info(u"Threshold: %f" % (metrics[0]))
-			logger.info(u"Total number of total wrong classified words: %d" % (metrics[1]))
-			logger.info(u"Total number of total correct words: %d" % (metrics[2]))
-			logger.info(u"Total number of total wrong words: %d" % (metrics[3]))
-			logger.info(u"Current word CER is: %f" % (float(metrics[1])/float(total_words_checked)))
+		word_metrics['CER'] = [float(miss)/float(total_words_checked) for miss in word_metrics['missclasified']]
+		for threshold, miss, correct, incorrect, cer in zip(word_metrics['threshold'], word_metrics['missclasified'], word_metrics['tag_correct'], word_metrics['tag_incorrect'], word_metrics['CER']):
+			logger.info(u"Threshold: %f" % (threshold))
+			logger.info(u"Total number of total wrong classified words: %d" % (miss))
+			logger.info(u"Total number of total correct words: %d" % (correct))
+			logger.info(u"Total number of total wrong words: %d" % (incorrect))
+			logger.info(u"Current word CER is: %f" % (cer))
+		export_csv('./data.csv', word_metrics)
 
 		scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
 		for metric in scores_sentence:
