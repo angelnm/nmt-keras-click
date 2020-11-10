@@ -24,7 +24,7 @@ from keras_wrapper.utils import decode_predictions_beam_search, flatten_list_of_
 from nmt_keras.model_zoo import TranslationModel
 from nmt_keras.online_models import build_online_models
 from utils.utils import update_parameters
-from utils.confidence_measure import CM, IBM1, IBM2, Fast_Align
+from utils.confidence_measure import CM, IBM1, IBM2, Fast_Align, HMM
 from sys import version_info
 
 from pycocoevalcap.bleu.bleu import Bleu

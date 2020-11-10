@@ -36,7 +36,7 @@ python3 nmt_cm.py       -ds "${FOLDER}/model/${SOURCE}-${TARGET}/Dataset_${CORPU
                                         -src "${FOLDER}/preraw/tst/${PAIR}/test.${SOURCE}" -trg "${FOLDER}/preraw/tst/${PAIR}/test.${TARGET}" \
                                         -d "./../out.txt" \
                                         --models "${FOLDER}/model/${SOURCE}-${TARGET}/${MODEL}" \
-                                        --confidence_estimator ${ESTIMATOR} \
+                                        -est ${ESTIMATOR} \
                                         --lexicon_model ${LEXICON} \
                                         --alignment_model ${ALIGNMT} \
                                         --prefix \
