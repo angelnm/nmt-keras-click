@@ -9,7 +9,8 @@ DIV=$1
 FROM=$2
 TO=$3
 ESTIMATOR=$4
-OUTPUT=./results_cm/${SOURCE}_${TARGET}_${ESTIMATOR}/data.csv
+DIFF=$5
+OUTPUT=./results_cm/${SOURCE}_${TARGET}_${ESTIMATOR}/data_${DIFF}.csv
 
 case ${ESTIMATOR} in
    [0])

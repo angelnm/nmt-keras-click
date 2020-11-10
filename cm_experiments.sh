@@ -1,14 +1,15 @@
 #!/bin/sh
 
-DIV=20
-FROM=0.0
-TO=0.00000000001
+TO=$1
+FROM=$2
+DIV=$3
+DIFF=$4
 
-ESTIMATOR=0
-./confidence_measure.sh ${DIV} ${FROM} ${TO} ${ESTIMATOR}
-ESTIMATOR=1
-./confidence_measure.sh ${DIV} ${FROM} ${TO} ${ESTIMATOR}
-ESTIMATOR=2
-./confidence_measure.sh ${DIV} ${FROM} ${TO} ${ESTIMATOR}
 ESTIMATOR=3
-./confidence_measure.sh ${DIV} ${FROM} ${TO} ${ESTIMATOR}
+./confidence_measure.sh ${DIV} ${FROM} ${TO} ${ESTIMATOR} ${DIFF}
+ESTIMATOR=2
+./confidence_measure.sh ${DIV} ${FROM} ${TO} ${ESTIMATOR} ${DIFF}
+ESTIMATOR=1
+./confidence_measure.sh ${DIV} ${FROM} ${TO} ${ESTIMATOR} ${DIFF}
+ESTIMATOR=0
+./confidence_measure.sh ${DIV} ${FROM} ${TO} ${ESTIMATOR} ${DIFF}
