@@ -15,13 +15,13 @@ class CM:
 
 		self.probability_matrix = self.load_matrix(model_path)
 		self.nonzero_matrix = self.load_nonzero_lexicon()
-		self.lexicon_smoothing = 0.00
+		self.lexicon_smoothing = 0.003
 
 		self.words2index, self.index2words = self.load_dictionaries(model_path)
 
 	def log(self, value):
 		if value != 0:
-			return math.log(value)
+				return math.log(value)
 		return -math.inf
 
 	def load_dictionaries(self, model_path):
@@ -31,8 +31,8 @@ class CM:
 		:return: words2index & index2words dictionaries
 		"""
 		try:
-			with open(f"{model_path}.{CM.DIC_EXT}", 'r') as f:
-				lines = f.read().splitlines()
+			with open(f"{model_path}.{CM.DIC_EXT}", 'r', encoding='utf-8') as f:
+					lines = f.read().splitlines()
 
 			words2index = [{CM.END_P:0}, {CM.END_P:0}]
 			index2words = [{0:CM.END_P}, {0:CM.END_P}]
@@ -126,18 +126,12 @@ class CM:
 		"""
 		try:
 			idx_source = self.words2index[CM.SOURCE][word_source]
-		except Exception:
-			self.no_word_alert(word_source)
-			return 0.0
-
-		try:
 			idx_target = self.words2index[CM.TARGET][word_target]
+			prob = self.probability_matrix[idx_source, idx_target]
 		except Exception:
-			self.no_word_alert(word_target)
-			return 0.0
+			prob = 0.0
 
-		prob = self.probability_matrix[idx_source, idx_target]
-		if prob == 0:
+		if prob == 0.0:
 			prob = self.lexicon_smoothing / self.nonzero_matrix[idx_source]
 		else:
 			prob *= (1 - self.lexicon_smoothing)
@@ -164,12 +158,6 @@ class IBM1(CM):
 		:param word_target: Word from the target sentence
 		:return: Max translate probability
 		"""
-		try:
-			idx_target = self.words2index[CM.TARGET][word_target]
-		except Exception:
-			self.no_word_alert(word_target)
-			return 0.0
-
 		max_prob = 0.0
 		for word_source in sentence_source:
 			prob = self.get_lexicon_probability(word_source, word_target)
@@ -183,9 +171,9 @@ class IBM2(CM):
 
 	def __init__(self, model_path, alignment_path, verbose=False):
 		CM.__init__(self, model_path, verbose)
-		self.alignment_matrix = self.load_alignment(alignment_path)
+		self.alignment_matrix = self.load_alignment_model(alignment_path)
 
-	def load_alignment(self, alignment_path):
+	def load_alignment_model(self, alignment_path):
 		"""
 		Load the alignment probabilities
 		:param alignment_path: Path to the file
@@ -193,7 +181,7 @@ class IBM2(CM):
 		"""
 		try:
 			alignment_matrix = dict()
-			with open(alignment_path, 'r') as f:
+			with open(alignment_path, 'r', encoding='utf-8') as f:
 				for line in f:
 					elements = line.split()
 					s_pos = int(elements[0])
@@ -238,12 +226,6 @@ class IBM2(CM):
 		:param target_len: Length of the target sentence
 		:return: Max translate probability
 		"""
-		try:
-			idx_target = self.words2index[CM.TARGET][word_target]
-		except Exception:
-			self.no_word_alert(word_target)
-			return 0.0
-
 		source_len = len(sentence_source)
 
 		max_prob = self.log(self.get_alignment_probability(0, target_pos, source_len, target_len)) + self.log(self.get_lexicon_probability(CM.END_P, word_target))
@@ -360,12 +342,6 @@ class Fast_Align(CM):
 		:param target_len: Length of the target sentence
 		:return: Max Translate Probability
 		"""
-		try:
-			idx_target = self.words2index[CM.TARGET][word_target]
-		except Exception:
-			self.no_word_alert(word_target)
-			return 0.0
-
 		source_len = len(sentence_source)
 		norm_factor = self.get_normalize_factor(target_pos, source_len, target_len)
 
@@ -377,3 +353,120 @@ class Fast_Align(CM):
 				max_prob = prob
 
 		return math.exp(max_prob)
+
+class HMM(CM):
+	def __init__(self, model_path, align_model_path, verbose=False):
+		CM.__init__(self, model_path, verbose)
+		self.alignment_matrix = self.load_alignment_model(align_model_path)
+
+		self.current_source = None
+		self.dynamic_matrix = []
+
+	def load_alignment_model(self, alignment_path):
+		"""
+		Load the alignment model from the *.hhmm.* file
+		:param alignment_path: Path to the file with the alignments
+		:return: Dictionary with the probabilities
+		"""
+		try:
+			with open(alignment_path, 'r', encoding='utf-8') as f:
+				alignment_matrix = dict()
+				previous = 0
+
+				for line in f:
+					line = line.rstrip('\n')
+					if line != "":
+						action, data = line.split(':', 1)
+						if action == 'Distribution for':
+							previous, data = data.split('  ', 1)
+							previous = int(previous.split(':', -1)[1])
+							alignment_matrix[previous] = dict()
+
+							data = data.replace(' ', '');
+							for pair in data.split(';'):
+								if pair != '':
+									current, prob = pair.split(':')
+									current = int(current)
+									prob = float(prob)
+									alignment_matrix[previous][current] = prob
+
+						elif action == 'SUM':
+							value = float(data)
+							for key in alignment_matrix[previous]:
+								alignment_matrix[previous][key] /= value
+
+						elif action == 'FULL-SUM':
+							value = float(data)
+
+				return alignment_matrix
+
+		except FileNotFoundError:
+			file_not_found_alert(alignment_path)
+
+	def get_alignment_probability(self, current_pos, previous_pos):
+		"""
+		Obtain the alignment probability from the previous and current position of the source sentence
+		:param current_pos: Position of the current source word
+		:param previous_pos: Position of the previous source word
+		:return: p(j|j',J)
+		"""
+		return self.alignment_matrix[previous_pos][previous_pos - current_pos]
+
+	def generate_dynamic_matrix(self, sentence_source, target_pos):
+		"""
+		Creates and extends the structure to calculate dynamicaly which previous source position was the better
+		:param sentence_source: Sentence from the source corpus
+		:param target_pos: Position of the current target word
+		"""
+		if self.current_source != sentence_source:
+			self.current_source = sentence_source
+			self.dynamic_matrix = []
+
+		while len(self.dynamic_matrix) < target_pos:
+			self.dynamic_matrix.append([-math.inf for i in range(len(sentence_source))])
+
+	def get_confidence(self, sentence_source, word_target, pos_target, len_target=None):
+		"""
+		Calculates the confidence of the current target word
+		:param sentence_source: List of words of the source sentence
+		:param word_target: Word from the target sentence
+		:param pos_target: Position of the target word in the target sentence
+		:param target_len: Length of the target sentence
+		:return: Confidence
+		"""
+
+		s_source = sentence_source[:]
+		s_source.insert(0, CM.END_P)
+		self.generate_dynamic_matrix(s_source, pos_target)
+
+		pos_target -= 1
+		probabilities = []
+
+		if pos_target == 0:
+			for pos_source, word_source in enumerate(s_source): 
+				prob_lex = self.get_lexicon_probability(word_source, word_target)
+				self.dynamic_matrix[pos_target][pos_source] = self.log(prob_lex)
+				probabilities.append(prob_lex)
+		else:
+			for pos_source, word_source in enumerate(s_source):
+				max_prob = -math.inf
+				max_prev = 0
+				for previous in range(len(s_source)):
+					prob = self.log(self.get_alignment_probability(pos_source, previous))
+					prob += self.dynamic_matrix[pos_target-1][previous]
+					if prob >= max_prob:
+						max_prob = prob
+						max_prev = previous
+
+				prob_lex = self.get_lexicon_probability(word_source, word_target)
+				prob_ali = self.get_alignment_probability(pos_source, max_prev)
+
+				self.dynamic_matrix[pos_target][pos_source] = max_prob + self.log(prob_lex)
+				probabilities.append(prob_ali * prob_lex)
+
+		max_prob = 0.0
+		for prob in probabilities:
+			if prob > max_prob:
+				max_prob = prob
+
+		return max_prob

@@ -68,7 +68,7 @@ def parse_args():
 						default="")
 	parser.add_argument("-ma", "--max_mouse_actions", 	 type=int, 	 required=False, default=0, 	help="Max number of mouse actions for the same position")
 
-	parser.add_argument("-est","--confidence_estimator", type=int,	 required=False, default=0, 	help="Confidence Estimator to use. 0-IBM1 | 1-IBM2 | 2-Fast_Align")
+	parser.add_argument("-est","--confidence_estimator", type=int,	 required=False, default=0, 	help="Confidence Estimator to use. 0-IBM1 | 1-IBM2 | 2-Fast_Align | 3-HMM")
 	parser.add_argument("-cm_from",						 type=float, required=False, default=0.0,	help="Minimum value to estimate")
 	parser.add_argument("-cm_to",						 type=float, required=False, default=1.0,	help="Maximum value to estimate")
 	parser.add_argument("-cm_output",					 type=str,	 required=True,	 				help="Output File for the data")
@@ -311,12 +311,15 @@ def interactive_simulation():
 	unk_id = dataset.extra_words['<unk>']
 
 	# Load Confidence Measure Model
-	if args.confidence_estimator == 0:
+	mode = args.confidence_estimator
+	if   mode == 0:
 		confidence_model = IBM1(args.lexicon_model)
-	elif args.confidence_estimator == 1:
+	elif mode == 1:
 		confidence_model = IBM2(args.lexicon_model, args.alignment_model)
-	elif args.confidence_estimator == 2:
+	elif mode == 2:
 		confidence_model = Fast_Align(args.lexicon_model)
+	elif mode == 3:
+		confidence_model = HMM(args.lexicon_model, args.alignment_model)
 	else:
 		exit()
 
