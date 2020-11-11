@@ -15,7 +15,7 @@ class CM:
 
 		self.probability_matrix = self.load_matrix(model_path)
 		self.nonzero_matrix = self.load_nonzero_lexicon()
-		self.lexicon_smoothing = 0.003
+		self.lexicon_smoothing = 0.3
 
 		self.words2index, self.index2words = self.load_dictionaries(model_path)
 
