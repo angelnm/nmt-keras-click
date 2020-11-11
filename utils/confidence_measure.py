@@ -124,6 +124,8 @@ class CM:
 		:param word_target: Word from the target sentence
 		:return: Probability of the target being the translation of source
 		"""
+		idx_source = 0
+		idx_target = 0
 		try:
 			idx_source = self.words2index[CM.SOURCE][word_source]
 			idx_target = self.words2index[CM.TARGET][word_target]
