@@ -20,9 +20,10 @@ class CM:
 		self.words2index, self.index2words = self.load_dictionaries(model_path)
 
 	def log(self, value):
-		if value != 0:
+		try:
 				return math.log(value)
-		return -math.inf
+		except Exception:
+			return -math.inf
 
 	def load_dictionaries(self, model_path):
 		"""
