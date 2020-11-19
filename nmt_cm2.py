@@ -320,9 +320,9 @@ def interactive_simulation():
     elif mode == 1:
         confidence_model = IBM2(args.lexicon_model, args.alignment_model, alpha=args.cm_alpha)
     elif mode == 2:
-        confidence_model = Fast_Align(args.lexicon_model, alpha=cm_alpha)
+        confidence_model = Fast_Align(args.lexicon_model, alpha=args.cm_alpha)
     elif mode == 3:
-        confidence_model = HMM(args.lexicon_model, args.alignment_model, alpha=cm_alpha)
+        confidence_model = HMM(args.lexicon_model, args.alignment_model, alpha=args.cm_alpha)
     else:
         exit()
 
