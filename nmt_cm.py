@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+
+# BPE LEVEL
 from __future__ import print_function
 import time
 import argparse

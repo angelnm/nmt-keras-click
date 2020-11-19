@@ -10,6 +10,7 @@ FROM=$2
 TO=$3
 ESTIMATOR=$4
 DIFF=$5
+ALPHA=$6
 OUTPUT=./results_cm/${SOURCE}_${TARGET}_${ESTIMATOR}/data_${DIFF}.csv
 
 case ${ESTIMATOR} in
@@ -44,3 +45,4 @@ python3 nmt_cm2.py       -ds "${FOLDER}/model/${SOURCE}-${TARGET}/Dataset_${CORP
                                         -cm_from ${FROM} \
                                         -cm_to ${TO} \
                                         -cm_output ${OUTPUT} \
+                                        -cm_alpha ${ALPHA}

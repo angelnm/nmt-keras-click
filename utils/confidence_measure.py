@@ -21,7 +21,7 @@ class CM:
 
 	def log(self, value):
 		try:
-				return math.log(value)
+			return math.log(value)
 		except Exception:
 			return -math.inf
 
@@ -118,6 +118,16 @@ class CM:
 	def get_confidence(self, sentence_source, word_target, target_pos=None, target_len=None):
 		pass
 
+	def combine_probabilities(self, prob1, prob2, alpha=0.5):
+		"""
+		Combination of two models
+		:params prob1: Log probability 1
+		:params prob2: Log probability 2
+		:params alpha: Value
+		:return: Linear combination
+		"""
+		return alpha*prob1 + (1-alpha)*prob2
+
 	def get_lexicon_probability(self, word_source, word_target):
 		"""
 		Get the lexion probability
@@ -172,9 +182,10 @@ class IBM1(CM):
 
 class IBM2(CM):
 
-	def __init__(self, model_path, alignment_path, verbose=False):
+	def __init__(self, model_path, alignment_path, alpha=0.5, verbose=False):
 		CM.__init__(self, model_path, verbose)
 		self.alignment_matrix = self.load_alignment_model(alignment_path)
+		self.alpha = alpha
 
 	def load_alignment_model(self, alignment_path):
 		"""
@@ -231,9 +242,15 @@ class IBM2(CM):
 		"""
 		source_len = len(sentence_source)
 
-		max_prob = self.log(self.get_alignment_probability(0, target_pos, source_len, target_len)) + self.log(self.get_lexicon_probability(CM.END_P, word_target))
+		lex_prob = self.log(self.get_lexicon_probability(CM.END_P, word_target))
+		ali_prob = self.log(self.get_alignment_probability(0, target_pos, source_len, target_len))
+		max_prob = self.combine_probabilities(lex_prob, ali_prob, self.alpha)
+
 		for pos, word in enumerate(sentence_source):
-			prob = self.log(self.get_alignment_probability(pos+1, target_pos, source_len, target_len)) + self.log(self.get_lexicon_probability(word, word_target))
+			lex_prob = self.log(self.get_lexicon_probability(word, word_target))
+			ali_prob = self.log(self.get_alignment_probability(pos+1, target_pos, source_len, target_len))
+			prob =  self.combine_probabilities(lex_prob, ali_prob, self.alpha)
+
 			if prob > max_prob:
 				max_prob = prob
 
@@ -241,9 +258,10 @@ class IBM2(CM):
 
 class Fast_Align(CM):
 
-	def __init__(self, model_path, prob_0 = 0, tension = 4, verbose=False):
+	def __init__(self, model_path, alpha=0.5, prob_0 = 0, tension = 4, verbose=False):
 		CM.__init__(self, model_path, verbose)
 
+		self.alpha = alpha
 		self.prob_0 = prob_0
 		self.tension = tension
 
@@ -348,9 +366,14 @@ class Fast_Align(CM):
 		source_len = len(sentence_source)
 		norm_factor = self.get_normalize_factor(target_pos, source_len, target_len)
 
-		max_prob = self.log(self.get_alignment_probability(0, target_pos, source_len, target_len, norm_factor)) + self.log(self.get_lexicon_probability(CM.END_P, word_target))
+		lex_prob = self.log(self.get_lexicon_probability(CM.END_P, word_target))
+		ali_prob = self.log(self.get_alignment_probability(0, target_pos, source_len, target_len, norm_factor))
+		max_prob = self.combine_probabilities(lex_prob, ali_prob, self.alpha)
+
 		for pos, word in enumerate(sentence_source):
-			prob = self.log(self.get_alignment_probability(pos+1, target_pos, source_len, target_len, norm_factor)) + self.log(self.get_lexicon_probability(word, word_target))
+			lex_prob = self.log(self.get_lexicon_probability(word, word_target))
+			ali_prob = self.log(self.get_alignment_probability(pos+1, target_pos, source_len, target_len, norm_factor))
+			prob =  self.combine_probabilities(lex_prob, ali_prob, self.alpha)
 
 			if prob > max_prob:
 				max_prob = prob
@@ -358,9 +381,11 @@ class Fast_Align(CM):
 		return math.exp(max_prob)
 
 class HMM(CM):
-	def __init__(self, model_path, align_model_path, verbose=False):
+	def __init__(self, model_path, align_model_path, alpha=0.5, verbose=False):
 		CM.__init__(self, model_path, verbose)
 		self.alignment_matrix = self.load_alignment_model(align_model_path)
+
+		self.alpha = alpha
 
 		self.current_source = None
 		self.dynamic_matrix = []
@@ -461,11 +486,11 @@ class HMM(CM):
 						max_prob = prob
 						max_prev = previous
 
-				prob_lex = self.get_lexicon_probability(word_source, word_target)
-				prob_ali = self.get_alignment_probability(pos_source, max_prev)
+				prob_lex = self.log(self.get_lexicon_probability(word_source, word_target))
+				prob_ali = self.log(self.get_alignment_probability(pos_source, max_prev))
 
-				self.dynamic_matrix[pos_target][pos_source] = max_prob + self.log(prob_lex)
-				probabilities.append(prob_ali * prob_lex)
+				self.dynamic_matrix[pos_target][pos_source] = max_prob + prob_lex
+				probabilities.append(self.combine_probabilities(prob_lex, prob_ali, self.alpha))
 
 		max_prob = 0.0
 		for prob in probabilities:

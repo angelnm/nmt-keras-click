@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+
+# WORD LEVEL
 from __future__ import print_function
 import time
 import argparse
@@ -72,6 +74,7 @@ def parse_args():
     parser.add_argument("-cm_from",                      type=float, required=False, default=0.0,   help="Minimum value to estimate")
     parser.add_argument("-cm_to",                        type=float, required=False, default=1.0,   help="Maximum value to estimate")
     parser.add_argument("-cm_output",                    type=str,   required=True,                 help="Output File for the data")
+    parser.add_argument("-cm_alpha",                     type=float, required=False, default=0.5,   help="Probability combination value")
     parser.add_argument("-lm", "--lexicon_model",        type=str,   required=True,                 help="path to the model of the confidence measure")
     parser.add_argument("-am", "--alignment_model",      type=str,   required=True,                 help="path to the alignment model of the confidence measure")
     #parser.add_argument("Mean or Ratio")
@@ -315,11 +318,11 @@ def interactive_simulation():
     if   mode == 0:
         confidence_model = IBM1(args.lexicon_model)
     elif mode == 1:
-        confidence_model = IBM2(args.lexicon_model, args.alignment_model)
+        confidence_model = IBM2(args.lexicon_model, args.alignment_model, alpha=args.cm_alpha)
     elif mode == 2:
-        confidence_model = Fast_Align(args.lexicon_model)
+        confidence_model = Fast_Align(args.lexicon_model, alpha=cm_alpha)
     elif mode == 3:
-        confidence_model = HMM(args.lexicon_model, args.alignment_model)
+        confidence_model = HMM(args.lexicon_model, args.alignment_model, alpha=cm_alpha)
     else:
         exit()
 
@@ -327,7 +330,6 @@ def interactive_simulation():
 
     word_metrics = {}
     word_metrics['threshold'] = np.append(np.arange(args.cm_from, args.cm_to, ((args.cm_to - args.cm_from)/args.word_threshold) ), args.cm_to)
-    #word_metrics['threshold']      = [1.0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-15, 1e-20, 1e-25, 1e-50, 0.0]
     word_metrics['missclasified']   = [0 for x in word_metrics['threshold']]
     word_metrics['tag_correct']     = [0 for x in word_metrics['threshold']]
     word_metrics['tag_incorrect']   = [0 for x in word_metrics['threshold']]
