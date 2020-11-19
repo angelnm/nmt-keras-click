@@ -11,7 +11,7 @@ TO=$3
 ESTIMATOR=$4
 DIFF=$5
 ALPHA=$6
-OUTPUT=./results_cm/${SOURCE}_${TARGET}_${ESTIMATOR}/data_${DIFF}.csv
+OUTPUT=./results_cm/${SOURCE}_${TARGET}_${ESTIMATOR}/data_${DIFF}_${ALPHA}.csv
 
 case ${ESTIMATOR} in
    [0])
