@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -v
 SOURCE=es
 TARGET=en
 PAIR=es-en
@@ -14,25 +14,25 @@ OUTPUT=./results_cm/${SOURCE}_${TARGET}_${ESTIMATOR}/data_${DIFF}.csv
 
 case ${ESTIMATOR} in
    [0])
-        LEXICON="${FOLDER}/model2/${SOURCE}-${TARGET}/IBM1/m"
+        LEXICON="${FOLDER}/model2/${SOURCE}-${TARGET}2/IBM1/m"
         ALIGNMT="_"
    ;;
    [1])
-        LEXICON="${FOLDER}/model2/${SOURCE}-${TARGET}/IBM2/m"
-        ALIGNMT="${FOLDER}/model2/${SOURCE}-${TARGET}/IBM2/prefix.a2to3"
+        LEXICON="${FOLDER}/model2/${SOURCE}-${TARGET}2/IBM2/m"
+        ALIGNMT="${FOLDER}/model2/${SOURCE}-${TARGET}2/IBM2/prefix.a2to3"
    ;;
    [2])
-        LEXICON="${FOLDER}/model2/${SOURCE}-${TARGET}/FAST/m"
+        LEXICON="${FOLDER}/model2/${SOURCE}-${TARGET}2/FAST/m"
         ALIGNMT="_"
    ;;
    [3])
-		LEXICON="${FOLDER}/model2/${SOURCE}-${TARGET}/HMM/m"
-		ALIGNMT="${FOLDER}/model2/${SOURCE}-${TARGET}/IBM2/prefix.hhmm.5"
-	;;
+        LEXICON="${FOLDER}/model2/${SOURCE}-${TARGET}2/HMM/m"
+	ALIGNMT="${FOLDER}/model2/${SOURCE}-${TARGET}2/HMM/prefix.hhmm.5"
+   ;;
 esac
 mkdir -p results_cm
 mkdir -p results_cm/${SOURCE}_${TARGET}_${ESTIMATOR}
-python3 nmt_cm.py       -ds "${FOLDER}/model/${SOURCE}-${TARGET}/Dataset_${CORPUS}_${SOURCE}${TARGET}.pkl" \
+python3 nmt_cm2.py       -ds "${FOLDER}/model/${SOURCE}-${TARGET}/Dataset_${CORPUS}_${SOURCE}${TARGET}.pkl" \
                                         -src "${FOLDER}/preraw/tst/${PAIR}/test.${SOURCE}" -trg "${FOLDER}/preraw/tst/${PAIR}/test.${TARGET}" \
                                         -d "./../out.txt" \
                                         --models "${FOLDER}/model/${SOURCE}-${TARGET}/${MODEL}" \
