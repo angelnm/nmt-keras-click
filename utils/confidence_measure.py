@@ -497,4 +497,4 @@ class HMM(CM):
 			if prob > max_prob:
 				max_prob = prob
 
-		return max_prob
+		return math.exp(max_prob)
