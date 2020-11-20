@@ -492,7 +492,7 @@ class HMM(CM):
 				self.dynamic_matrix[pos_target][pos_source] = max_prob + prob_lex
 				probabilities.append(self.combine_probabilities(prob_lex, prob_ali, self.alpha))
 
-		max_prob = 0.0
+		max_prob = -math.inf
 		for prob in probabilities:
 			if prob > max_prob:
 				max_prob = prob
