@@ -126,7 +126,15 @@ class CM:
 		:params alpha: Value
 		:return: Linear combination
 		"""
-		return alpha*prob1 + (1-alpha)*prob2
+		prob1 *= alpha 
+		if math.isnan(prob1):
+			prob1 = 0.0
+
+		prob2 *= (1-alpha)
+		if math.isnan(prob2):
+			prob2 = 0.0
+
+		return prob1 + prob2
 
 	def get_lexicon_probability(self, word_source, word_target):
 		"""
@@ -374,7 +382,6 @@ class Fast_Align(CM):
 			lex_prob = self.log(self.get_lexicon_probability(word, word_target))
 			ali_prob = self.log(self.get_alignment_probability(pos+1, target_pos, source_len, target_len, norm_factor))
 			prob =  self.combine_probabilities(lex_prob, ali_prob, self.alpha)
-
 			if prob > max_prob:
 				max_prob = prob
 
