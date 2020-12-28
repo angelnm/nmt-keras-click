@@ -1,5 +1,5 @@
 #!/bin/sh
-alphas="0.25 0.50 0.75"
+alphas="0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0"
 for a in $alphas; do
 	./cm_experiments.sh 1.0 0.0 100 0 $a
 done

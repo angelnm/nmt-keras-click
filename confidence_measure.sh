@@ -28,13 +28,14 @@ case ${ESTIMATOR} in
    ;;
    [3])
         LEXICON="${FOLDER}/model2/${SOURCE}-${TARGET}2/HMM/m"
-	ALIGNMT="${FOLDER}/model2/${SOURCE}-${TARGET}2/HMM/prefix.hhmm.5"
+	      ALIGNMT="${FOLDER}/model2/${SOURCE}-${TARGET}2/HMM/prefix.hhmm.5"
    ;;
 esac
 mkdir -p results_cm
 mkdir -p results_cm/${SOURCE}_${TARGET}_${ESTIMATOR}
 python3 nmt_cm2.py       -ds "${FOLDER}/model/${SOURCE}-${TARGET}/Dataset_${CORPUS}_${SOURCE}${TARGET}.pkl" \
-                                        -src "${FOLDER}/preraw/tst/${PAIR}/test.${SOURCE}" -trg "${FOLDER}/preraw/tst/${PAIR}/test.${TARGET}" \
+                                        -src "${FOLDER}/preraw/tst/${PAIR}/test.${SOURCE}" \
+                                        -trg "${FOLDER}/preraw/tst/${PAIR}/test.${TARGET}" \
                                         -d "./../out.txt" \
                                         --models "${FOLDER}/model/${SOURCE}-${TARGET}/${MODEL}" \
                                         -est ${ESTIMATOR} \
