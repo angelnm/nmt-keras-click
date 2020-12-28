@@ -731,7 +731,7 @@ def interactive_simulation():
 						word_cm = confidence_model.get_confidence(tokenized_input, w, element['pos']+idx, element['len'])
 						if word_cm > val:
 							val = word_cm
-
+					logger.debug(str(val))
 
 					for idx, threshold in enumerate(word_metrics['threshold']):
 						if val >= threshold:
@@ -749,6 +749,7 @@ def interactive_simulation():
 						word_cm = confidence_model.get_confidence(tokenized_input, w, element['pos']+idx, element['len'])
 						if word_cm > val:
 							val = word_cm
+					logger.debug(str(word_cm))
 
 					for idx, threshold in enumerate(word_metrics['threshold']):
 						if val >= threshold:

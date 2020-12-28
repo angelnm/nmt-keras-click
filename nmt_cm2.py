@@ -330,10 +330,11 @@ def interactive_simulation():
 
     word_metrics = {}
     word_metrics['threshold'] = np.append(np.arange(args.cm_from, args.cm_to, ((args.cm_to - args.cm_from)/args.word_threshold) ), args.cm_to)
-    word_metrics['missclasified']   = [0 for x in word_metrics['threshold']]
-    word_metrics['tag_correct']     = [0 for x in word_metrics['threshold']]
-    word_metrics['tag_incorrect']   = [0 for x in word_metrics['threshold']]
-    word_metrics['CER']             = [0 for x in word_metrics['threshold']]
+    word_metrics['tag_correct']             = [0 for x in word_metrics['threshold']]
+    word_metrics['missclasified_correct']   = [0 for x in word_metrics['threshold']]
+    word_metrics['tag_incorrect']           = [0 for x in word_metrics['threshold']]
+    word_metrics['missclasified_incorrect'] = [0 for x in word_metrics['threshold']]
+    word_metrics['CER']                     = [0 for x in word_metrics['threshold']]
 
 
     logger.debug(args.word_threshold)
@@ -715,7 +716,7 @@ def interactive_simulation():
                             word_metrics['tag_correct'][idx] += 1
                         else:
                             word_metrics['tag_incorrect'][idx] += 1
-                            word_metrics['missclasified'][idx] += 1
+                            word_metrics['missclasified_correct'][idx] += 1
 
                 logger.debug(str([x['word'] for x in incorrect_words]))
                 for element in incorrect_words:
@@ -724,7 +725,7 @@ def interactive_simulation():
                     for idx, threshold in enumerate(word_metrics['threshold']):
                         if word_cm >= threshold:
                             word_metrics['tag_correct'][idx] += 1
-                            word_metrics['missclasified'][idx] += 1
+                            word_metrics['missclasified_incorrect'][idx] += 1
                         else:
                             word_metrics['tag_incorrect'][idx] += 1
 
@@ -757,10 +758,15 @@ def interactive_simulation():
                     logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(total_sentences)))
                     logger.info(u"Total number of total classified words: %d" % (total_words_checked))
                     
-                    word_metrics['CER'] = [float(miss)/float(total_words_checked) for miss in word_metrics['missclasified']]
-                    for threshold, miss, correct, incorrect, cer in zip(word_metrics['threshold'], word_metrics['missclasified'], word_metrics['tag_correct'], word_metrics['tag_incorrect'], word_metrics['CER']):
+                    word_metrics['CER'] = [float(miss_c + miss_i)/float(total_words_checked) for miss_c, miss_i in zip(word_metrics['missclasified_correct'], word_metrics['missclasified_incorrect'])]
+                    for threshold, miss_c, miss_i, correct, incorrect, cer in zip(  word_metrics['threshold'], 
+                                                                                    word_metrics['missclasified_correct'],
+                                                                                    word_metrics['missclasified_incorrect'],
+                                                                                    word_metrics['tag_correct'], 
+                                                                                    word_metrics['tag_incorrect'], 
+                                                                                    word_metrics['CER']):
                         logger.info(u"Threshold: %f" % (threshold))
-                        logger.info(u"Total number of total wrong classified words: %d" % (miss))
+                        logger.info(u"Total number of total wrong classified words: %d" % ((miss_c+miss_i)))
                         logger.info(u"Total number of total correct words: %d" % (correct))
                         logger.info(u"Total number of total wrong words: %d" % (incorrect))
                         logger.info(u"Current word CER is: %f" % (cer))
@@ -773,10 +779,15 @@ def interactive_simulation():
         # 6.1 Log some information
         logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(total_sentences)))
         logger.info(u"Total number of total classified words: %d" % (total_words_checked))
-        word_metrics['CER'] = [float(miss)/float(total_words_checked) for miss in word_metrics['missclasified']]
-        for threshold, miss, correct, incorrect, cer in zip(word_metrics['threshold'], word_metrics['missclasified'], word_metrics['tag_correct'], word_metrics['tag_incorrect'], word_metrics['CER']):
+        word_metrics['CER'] = [float(miss_c + miss_i)/float(total_words_checked) for miss_c, miss_i in zip(word_metrics['missclasified_correct'], word_metrics['missclasified_incorrect'])]
+        for threshold, miss_c, miss_i, correct, incorrect, cer in zip(  word_metrics['threshold'], 
+                                                                        word_metrics['missclasified_correct'],
+                                                                        word_metrics['missclasified_incorrect'], 
+                                                                        word_metrics['tag_correct'], 
+                                                                        word_metrics['tag_incorrect'], 
+                                                                        word_metrics['CER']):
             logger.info(u"Threshold: %f" % (threshold))
-            logger.info(u"Total number of total wrong classified words: %d" % (miss))
+            logger.info(u"Total number of total wrong classified words: %d" % ((miss_c+miss_i)))
             logger.info(u"Total number of total correct words: %d" % (correct))
             logger.info(u"Total number of total wrong words: %d" % (incorrect))
             logger.info(u"Current word CER is: %f" % (cer))
@@ -793,10 +804,15 @@ def interactive_simulation():
         logger.debug (u'Interrupted!')
         logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(total_sentences)))
         logger.info(u"Total number of total classified words: %d" % (total_words_checked))
-        word_metrics['CER'] = [float(miss)/float(total_words_checked) for miss in word_metrics['missclasified']]
-        for threshold, miss, correct, incorrect, cer in zip(word_metrics['threshold'], word_metrics['missclasified'], word_metrics['tag_correct'], word_metrics['tag_incorrect'], word_metrics['CER']):
+        word_metrics['CER'] = [float(miss_c + miss_i)/float(total_words_checked) for miss_c, miss_i in zip(word_metrics['missclasified_correct'], word_metrics['missclasified_incorrect'])]
+        for threshold, miss_c, miss_i, correct, incorrect, cer in zip(  word_metrics['threshold'], 
+                                                                        word_metrics['missclasified_correct'],
+                                                                        word_metrics['missclasified_incorrect'], 
+                                                                        word_metrics['tag_correct'], 
+                                                                        word_metrics['tag_incorrect'], 
+                                                                        word_metrics['CER']):
             logger.info(u"Threshold: %f" % (threshold))
-            logger.info(u"Total number of total wrong classified words: %d" % (miss))
+            logger.info(u"Total number of total wrong classified words: %d" % ((miss_c+miss_i)))
             logger.info(u"Total number of total correct words: %d" % (correct))
             logger.info(u"Total number of total wrong words: %d" % (incorrect))
             logger.info(u"Current word CER is: %f" % (cer))

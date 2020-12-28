@@ -7,6 +7,7 @@ import codecs
 import copy
 import logging
 import time
+import pandas as pd
 from collections import OrderedDict
 
 from keras_wrapper.model_ensemble import InteractiveBeamSearchSampler
@@ -23,7 +24,7 @@ from keras_wrapper.utils import decode_predictions_beam_search, flatten_list_of_
 from nmt_keras.model_zoo import TranslationModel
 from nmt_keras.online_models import build_online_models
 from utils.utils import update_parameters
-from utils.confidence_measure import CM1, CM2
+from utils.confidence_measure import CM, IBM1, IBM2, Fast_Align, HMM
 from sys import version_info
 
 from pycocoevalcap.bleu.bleu import Bleu
@@ -65,26 +66,39 @@ def parse_args():
 	parser.add_argument("--models", nargs='+', required=True, help="path to the models")
 	parser.add_argument("-ch", "--changes", nargs="*", help="Changes to config, following the syntax Key=Value",
 						default="")
-	parser.add_argument("-ma", type=int, default=0, help="Max number of mouse actions for the same position")
+	parser.add_argument("-ma", 								type=int, 	required=False,	default=0, 		help="Max number of mouse actions for the same position")
 
-	parser.add_argument("-cm", "--confidence_model", type=str, required=True, help="path to the model of the confidence measure")
-	parser.add_argument("-am", "--alignment_model",  type=str, required=True, help="path to the alignment model of the confidence measure")
-	parser.add_argument("-st", "--sentence_threshold", type=float, default=0.0, help="Sentence threshold")
-	parser.add_argument("-r", "--ratio", default=False, action='store_true', help="Ratio Confidence Measure")
-	parser.add_argument("-rt", "--ratio_threshold", type=float, default=0.0, help="Threshold for ratio mode")
-	parser.add_argument("-wt", "--word_threshold", type=float, default=1.0, help="Words threshold")
+	parser.add_argument("-est", "--confidence_estimator", 	type=int, 	required=False, default=0, 		help="Confidence Estimator to use. 0-IBM1 | 1-IBM2 | 2-Fast_Align | 3-HMM")
+	parser.add_argument("-cm_output",						type=str, 	required=True,					help="Ouptut File for the data")
+	parser.add_argument("-cm_alpha", 						type=float,	required=False,	default=0.5,	help="Lineal combination alpha")
+	parser.add_argument("-cm_sentence", 					action='store_true', 		default=False, 	help="Ratio Confidence Measure")
+	parser.add_argument("-lm", "--lexicon_model", 			type=str,	required=True, 					help="Path to the model of the confidence measure")
+	parser.add_argument("-am", "--alignment_model",  		type=str, 	required=True, 					help="Path to the alignment model of the confidence measure")
+	parser.add_argument("-rt", "--ratio_threshold", 		type=float, required=False,	default=0.0, 	help="Threshold for ratio mode")
+	parser.add_argument("-st", "--sentence_threshold", 		type=float, required=False,	default=0.0, 	help="Sentence threshold")
+	parser.add_argument("-wt", "--word_threshold", 			type=float, required=False,	default=1.0, 	help="Words threshold")
 
 	return parser.parse_args()
 
-def get_sentence_cm(confidence_model, reference, hypothesis, ratio_method=False, ratio=0.0):
-	sentence_cm = 0
+def get_sentence_cm(confidence_model, source, hypothesis, ratio_method=False, ratio=0.0):
+	sentence_cm = 0.0
 
 	if not ratio_method:
-		sentence_cm = confidence_model.get_mean_confidence(reference, hypothesis)
+		sentence_cm = confidence_model.get_mean_confidence(source, hypothesis)
 	elif ratio_method:
-		sentence_cm = confidence_model.get_ratio_confidence(reference, hypothesis, ratio)
+		sentence_cm = confidence_model.get_ratio_confidence(source, hypothesis, ratio)
 
 	return sentence_cm
+
+def get_word_cm(confidence_model, source, hypo_word, position, length):
+	word_cm = confidence_model.get_confidence(source, hypo_word, position, length)
+	return word_cm
+
+def export_csv(output_path, data):
+    # threshold, missclassified, tag_correct, tag_incorrect, CER
+    df = pd.DataFrame(data)
+    df.to_csv(output_path, index=False)
+
 
 def calculate_scores(scorers, refs, hypos):
 	scores_sentence = {}
@@ -301,7 +315,17 @@ def interactive_simulation():
 	unk_id = dataset.extra_words['<unk>']
 
 	# Load Confidence Measure Model
-	confidence_model = CM2(args.confidence_model, args.alignment_model)
+	mode = args.confidence_estimator
+	if   mode == 0:
+		confidence_model = IBM1(args.lexicon_model)
+	elif mode == 1:
+		confidence_model = IBM2(args.lexicon_model, args.alignment_model, alpha=args.cm_alpha)
+	elif mode == 2:
+		confidence_model = Fast_Align(args.lexicon_model, alpha=args.cm_alpha)
+	elif mode == 3:
+		confidence_model = HMM(args.lexicon_model, args.alignment_model, alpha=args.cm_alpha)
+	else:
+		exit()
 	sentence_threshold = args.sentence_threshold
 	word_threshold = args.word_threshold
 
@@ -376,6 +400,21 @@ def interactive_simulation():
 					(Bleu(4), ["Bleu_1", "Bleu_2", "Bleu_3", "Bleu_4"]),
 					#(Ter(), "TER")
 				]
+
+			data = {
+				 'errors': 		[],
+				 'selections': 	[],
+				 'WSR': 		[],
+				 'MAR': 		[],
+				 'uMAR': 		[],
+				 'MAR_c': 		[],
+				 'sCER': 		[],
+				 'wCER': 		[],
+				 'Bleu_1':		[],
+				 'Bleu_2':		[],
+				 'Bleu_3':		[],
+				 'Bleu_4':		[]
+				}
 
 			# Variables to calculate the BLEU & TER
 			refs_metrics = {}
@@ -452,15 +491,12 @@ def interactive_simulation():
 						raise Exception('Only "list" is allowed in "SAMPLING_SAVE_MODE"')
 				logger.debug(u'Hypo_%d: %s' % (hypothesis_number, hypothesis))
 				hypothesis = hypothesis.split()
-				encoded_hypothesis = encoded_hypothesis.split()
 
 				# 2. Check Confidence Sentence Measure
-				tokenized_input = tokenized_input.split()
-				tokenized_input.append(CM2.END_P)
-				#encoded_hypothesis.append(CM2.END_P)
-				sentence_cm = get_sentence_cm(confidence_model, tokenized_input, encoded_hypothesis, args.ratio, args.ratio_threshold)
-
-
+				#encoded_hypothesis.append(CM.END_P)
+				src_line = src_line.split()
+				src_line.append(CM.END_P)
+				sentence_cm = get_sentence_cm(confidence_model, src_line, hypothesis, args.cm_sentence, args.ratio_threshold)
 
 				logger.debug(u"Sentence confidence Measure: %.10f" % sentence_cm) 
 				if sentence_cm >= sentence_threshold:
@@ -486,7 +522,7 @@ def interactive_simulation():
 								hypo_word = ''
 								hypo_words = []
 
-								word_cm = confidence_model.get_confidence(tokenized_input, CM2.END_P, BPE_offset, len(encoded_hypothesis))
+								word_cm = get_word_cm(confidence_model, src_line, CM.END_P, checked_index_r, len(hypothesis))
 								if word_cm < word_threshold:
 									correct_word = False
 							else:
@@ -497,11 +533,7 @@ def interactive_simulation():
 								else:
 									hypo_words = tokenize_f(str(hypo_word.encode('utf-8'), 'utf-8')).split()
 
-								word_cm = 1.0
-								for w in hypo_words:
-									confidence = confidence_model.get_confidence(tokenized_input, w, BPE_offset, len(encoded_hypothesis))
-									if confidence < word_cm:
-										word_cm = confidence
+								word_cm = get_word_cm(confidence_model, src_line, hypo_word, checked_index_r, len(hypothesis))
 
 								correct_word = True
 								if word_cm < word_threshold:
@@ -652,7 +684,7 @@ def interactive_simulation():
 							logger.debug("Target: %s" % ' '.join(reference))
 							logger.debug("Hypo_%d: %s" % (hypothesis_number, hypothesis))
 							hypothesis = hypothesis.split()
-							encoded_hypothesis.append(CM2.END_P)
+							encoded_hypothesis.append(CM.END_P)
 
 
 				# 3. Update user effort counters
@@ -745,54 +777,92 @@ def interactive_simulation():
 
 				if (n_line + 1) % 50 == 0:
 					# PONER AQUI TAMBIEN LAS METRICAS
+					scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
+					data['errors'].append(total_errors)
+					data['selections'].append(total_mouse_actions)
+					data['WSR'].append(float(total_errors)/total_words)
+					data['MAR'].append(float(total_mouse_actions)/total_words)
+					data['uMAR'].append((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions))
+					data['MAR_c'].append(float(total_mouse_actions) / total_chars)
+					data['sCER'].append(float(total_sentences - total_wrong_sentences)/float(max(total_sentences,1)))
+					data['wCER'].append(float(total_words_checked - total_wrong_words)/float(max(total_words_checked,1)))
+					for metric in scores_sentence:
+						data[metric].append(scores_sentence[metric])
+
+					# 6.1 Log some information
 					logger.info(u"%d sentences processed" % (n_line + 1))
 					logger.info(u"Current speed is {} per sentence".format((time.time() - start_time) / (n_line + 1)))
-					logger.info(u"Current WSR is: %f" % (float(total_errors) / total_words))
-					logger.info(u"Current MAR is: %f" % (float(total_mouse_actions) / total_words))
-					logger.info(u"Current uMAR is: %f" % ((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions)))
-					logger.info(u"Current MAR_c is: %f" % (float(total_mouse_actions) / total_chars))
-					logger.info(u"Current **KSMR** is: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
-					logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(max(total_sentences,1))))
-					logger.info(u"Current word CER is: %f" % (float(total_words_checked - total_wrong_words)/float(max(total_words_checked,1))))
-
-					scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
+					logger.debug (u"Total number of errors: %d" % (data['errors'][-1]))
+					logger.debug (u"Total number selections: %d" % (data['selections'][-1]))
+					logger.debug (u"WSR: %f" % (data['WSR'][-1]))
+					logger.debug (u"MAR: %f" % (data['MAR'][-1]))
+					logger.info(u"Current uMAR is: %f" % (data['uMAR'][-1]))
+					logger.debug (u"MAR_c: %f" % (data['MAR_c'][-1]))
+					logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
+					logger.info(u"Current sentence CER is: %f" % (data['sCER'][-1]))
+					logger.info(u"Current word CER is: %f" % (data['wCER'][-1]))
 					for metric in scores_sentence:
-						logger.info("Current " + metric + " is: " + "{:.4f}".format(scores_sentence[metric]))
-		
-		# 6. Final!
-		# 6.1 Log some information
-		logger.debug (u"Total number of errors: %d" % (total_errors))
-		logger.debug (u"Total number selections: %d" % (total_mouse_actions))
-		logger.debug (u"WSR: %f" % (float(total_errors) / total_words))
-		logger.debug (u"MAR: %f" % (float(total_mouse_actions) / total_words))
-		logger.info(u"Current uMAR is: %f" % ((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions)))
-		logger.debug (u"MAR_c: %f" % (float(total_mouse_actions) / total_chars))
-		logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
-		logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(max(total_sentences,1))))
-		logger.info(u"Current word CER is: %f" % (float(total_words_checked - total_wrong_words)/float(max(total_words_checked,1))))
+						logger.info("Current " + metric + " is: " + "{:.4f}".format(data[metric][-1]))
 
+		# 6. Final!
 		scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
+		data['errors'].append(total_errors)
+		data['selections'].append(total_mouse_actions)
+		data['WSR'].append(float(total_errors)/total_words)
+		data['MAR'].append(float(total_mouse_actions)/total_words)
+		data['uMAR'].append((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions))
+		data['MAR_c'].append(float(total_mouse_actions) / total_chars)
+		data['sCER'].append(float(total_sentences - total_wrong_sentences)/float(max(total_sentences,1)))
+		data['wCER'].append(float(total_words_checked - total_wrong_words)/float(max(total_words_checked,1)))
 		for metric in scores_sentence:
-						logger.info("Current " + metric + " is: " + "{:.4f}".format(scores_sentence[metric]))
+			data[metric].append(scores_sentence[metric])
+
+		# 6.1 Log some information
+		logger.debug (u"Total number of errors: %d" % (data['errors'][-1]))
+		logger.debug (u"Total number selections: %d" % (data['selections'][-1]))
+		logger.debug (u"WSR: %f" % (data['WSR'][-1]))
+		logger.debug (u"MAR: %f" % (data['MAR'][-1]))
+		logger.info(u"Current uMAR is: %f" % (data['uMAR'][-1]))
+		logger.debug (u"MAR_c: %f" % (data['MAR_c'][-1]))
+		logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
+		logger.info(u"Current sentence CER is: %f" % (data['sCER'][-1]))
+		logger.info(u"Current word CER is: %f" % (data['wCER'][-1]))
+		for metric in scores_sentence:
+			logger.info("Current " + metric + " is: " + "{:.4f}".format(data[metric][-1]))
+
+		export_csv(args.cm_output, data)
 
 		# 6.2 Close open files
 		fsrc.close()
 		ftrans.close()
 	except KeyboardInterrupt:
-		logger.debug (u'Interrupted!')
-		logger.debug (u"Total number of corrections (up to now): %d" % (total_errors))
-		logger.debug (u"WSR: %f" % (float(total_errors) / total_words))
-		logger.info(u"Current MAR is: %f" % (float(total_mouse_actions) / total_words))
-		logger.info(u"Current uMAR is: %f" % ((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions)))
-		logger.info(u"Current MAR_c is: %f" % (float(total_mouse_actions) / total_chars))
-		logger.debug (u"SR: %f" % (float(total_mouse_actions) / n_line))
-		logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
-		logger.info(u"Current sentence CER is: %f" % (float(total_sentences - total_wrong_sentences)/float(max(total_sentences,1))))
-		logger.info(u"Current word CER is: %f" % (float(total_words_checked - total_wrong_words)/float(max(total_words_checked,1))))
-
 		scores_sentence = calculate_scores(scorers, refs_metrics, hypo_metrics)
+		data['errors'].append(total_errors)
+		data['selections'].append(total_mouse_actions)
+		data['WSR'].append(float(total_errors)/total_words)
+		data['MAR'].append(float(total_mouse_actions)/total_words)
+		data['uMAR'].append((float(total_mouse_actions) - args.ma*float(total_errors))/float(total_mouse_actions))
+		data['MAR_c'].append(float(total_mouse_actions) / total_chars)
+		data['sCER'].append(float(total_sentences - total_wrong_sentences)/float(max(total_sentences,1)))
+		data['wCER'].append(float(total_words_checked - total_wrong_words)/float(max(total_words_checked,1)))
 		for metric in scores_sentence:
-						logger.info("Current " + metric + " is: " + "{:.4f}".format(scores_sentence[metric]))
+			data[metric].append(scores_sentence[metric])
+
+		# 6.1 Log some information
+		logger.debug (u'Interrupted!')
+		logger.debug (u"Total number of errors: %d" % (data['errors'][-1]))
+		logger.debug (u"Total number selections: %d" % (data['selections'][-1]))
+		logger.debug (u"WSR: %f" % (data['WSR'][-1]))
+		logger.debug (u"MAR: %f" % (data['MAR'][-1]))
+		logger.info(u"Current uMAR is: %f" % (data['uMAR'][-1]))
+		logger.debug (u"MAR_c: %f" % (data['MAR_c'][-1]))
+		logger.debug (u"**KSMR**: %f" % (float(total_keystrokes + total_mouse_actions) / total_chars))
+		logger.info(u"Current sentence CER is: %f" % (data['sCER'][-1]))
+		logger.info(u"Current word CER is: %f" % (data['wCER'][-1]))
+		for metric in scores_sentence:
+			logger.info("Current " + metric + " is: " + "{:.4f}".format(data[metric][-1]))
+
+		export_csv(args.cm_output, data)
 
 		# 6.2 Close open files
 		fsrc.close()
