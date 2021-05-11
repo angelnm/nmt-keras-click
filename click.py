@@ -324,7 +324,7 @@ def interactive_simulation():
                                  'attend_on_output': params.get('ATTEND_ON_OUTPUT', 'transformer' in params['MODEL_TYPE'].lower()),
                                  'n_best_optimizer': params.get('N_BEST_OPTIMIZER', False)
                                  }
-            data_file = open("./trained_models/data.txt", "r")
+            data_file = open("./trained_models/data_{}.txt".format(args.ma), "r")
 
             # Manage pos_unk strategies
             if params['POS_UNK']:
