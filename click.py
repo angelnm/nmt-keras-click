@@ -324,6 +324,7 @@ def interactive_simulation():
                                  'attend_on_output': params.get('ATTEND_ON_OUTPUT', 'transformer' in params['MODEL_TYPE'].lower()),
                                  'n_best_optimizer': params.get('N_BEST_OPTIMIZER', False)
                                  }
+            data_file = open("./trained_models/data.txt", "r")
 
             # Manage pos_unk strategies
             if params['POS_UNK']:
@@ -682,6 +683,8 @@ def interactive_simulation():
                 total_keystrokes += keystrokes_sentence
                 total_mouse_actions += mouse_actions_sentence
 
+                data_file.write("{}:{}:{}".format(len(hypothesis),errors_sentence, mouse_actions_sentence))
+
                 # 3.1 Log some info
                 logger.debug(u"Final hypotesis: %s" % u' '.join(hypothesis))
                 logger.debug(u"%d errors. "
@@ -759,6 +762,7 @@ def interactive_simulation():
         # 6.2 Close open files
         fsrc.close()
         ftrans.close()
+        data_file.close()
     except KeyboardInterrupt:
         logger.debug (u'Interrupted!')
         logger.debug (u"Total number of corrections (up to now): %d" % (total_errors))
@@ -771,6 +775,7 @@ def interactive_simulation():
         # 6.2 Close open files
         fsrc.close()
         ftrans.close()
+        data_file.close()
 
 if __name__ == "__main__":
     interactive_simulation()
