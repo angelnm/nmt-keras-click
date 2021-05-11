@@ -683,7 +683,7 @@ def interactive_simulation():
                 total_keystrokes += keystrokes_sentence
                 total_mouse_actions += mouse_actions_sentence
 
-                data_file.write("{}:{}:{}".format(len(hypothesis),errors_sentence, mouse_actions_sentence))
+                data_file.write("{}:{}:{}\n".format(len(hypothesis),errors_sentence, mouse_actions_sentence))
 
                 # 3.1 Log some info
                 logger.debug(u"Final hypotesis: %s" % u' '.join(hypothesis))
