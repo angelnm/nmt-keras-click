@@ -67,7 +67,7 @@ def parse_args():
 
 def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_chars=[]):
     """
-    Searches all the valid words for a last_word and a list of wrong_chars to continue it
+    Searches all the valid words from a last_word and a list of wrong_chars to continue it
     :param pos: Position on the hypothesis of the last word
     :param word2index_y: Dictionary to convert words to indeces
     :param last_word: Word to correct
@@ -76,16 +76,14 @@ def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_cha
     :return: Dictionary of valid next words
     """
 
+
     find_ending = False
     valid_next_words = dict()
+    valid_next_words[pos] = dict()
     prefix = dict()
     
     # As we need a dictionary for the end words, all of them will refer this empty dictionary
     empty_dict = dict()
-
-    # Create the starting dictionary of subwords for the position "pos"
-    if valid_next_words.get(pos) == None:
-        valid_next_words[pos] = dict()
 
     # Check if the space appear as a wrong char
     plus_len = 0
@@ -104,17 +102,17 @@ def fill_valid_next_words(pos, word2index_y, last_word, bpe_separator, wrong_cha
         # Lo separamos en sus tres valores
         c_dict = element[0]
         c_father = element[1]
-        c_pre = element[2]
+        c_prefix = element[2]
         c_word = element[3]
 
         for w in word2index_y:
             # Create the new prefix of the word C_PRE + W
             last = True
             if w[-2:] == bpe_separator: 
-                word = c_pre +  w[:-2]
+                word = c_prefix +  w[:-2]
                 last = False
             else:
-                word = c_pre + w
+                word = c_prefix + w
 
             # Check if the new prefix is contained in the last_word
             if not (last_word[:len(word)] == word or word[:len(last_word)] == last_word):
@@ -526,6 +524,13 @@ def interactive_simulation():
                         
 
                         if mouse_action_counter >= args.ma:
+                            # The translator has corrected the error manually
+                            logger.debug('-> Trans Change Performed <-')
+
+                            # Add a keystroke
+                            errors_sentence += 1
+                            if next_correction_pos - last_correct_pos > 1:
+                                mouse_actions_sentence += 1
 
                             # 2.2.4 Tokenize the prefix properly
                             next_correction = reference[next_correction_pos]
@@ -559,45 +564,51 @@ def interactive_simulation():
                                 if word2index_y.get(last_word) is None:
                                     unk_words_dict[pos] = last_word
 
-                            logger.debug(u'"%s" to character %d.' % (next_correction, next_correction_pos))
+                            logger.debug('"{}" to character {}.'.format(next_correction, next_correction_pos))
                         else:
-                            
+                            # The System tries to correct the error automatically
+                            logger.debug('-> Mouse Action Performed <-')
+
+                            # Increase the counter of Mouse Actions Performed
                             mouse_action_counter += 1
+                            mouse_actions_sentence += 1
 
-
-                            # 2.2.4 Tokenize the prefix properly
+                            # Tokenize the prefix properly
                             tokenized_validated_prefix = validated_prefix.split()
 
-                            if len(tokenized_validated_prefix) > 0 and hypothesis[next_correction_pos -1] != ' ': 
+
+                            # Check if the error is the first letter of a word | last_word & tokenized_validated_prefix
+                            if len(tokenized_validated_prefix) > 0 and hypothesis[next_correction_pos-1] != ' ': 
                                 last_word = tokenized_validated_prefix[-1]
                                 tokenized_validated_prefix = tokenized_validated_prefix[:-1]
                             else:
                                 last_word = ""
 
-                            # 2.2.5 Validate words
-                            pos = 0
-                            for fixed_word in tokenized_validated_prefix: 
-                                new_words = tokenize_f(fixed_word).split()
 
-                                for word in new_words:
-                                    fixed_words_user[pos] = word2index_y.get(word, unk_id)
-                                    if word2index_y.get(word) is None:
-                                        unk_words_dict[pos] = word
+                            # Save the validated prefix | fixed_words_user & unk_words_dict
+                            pos = 0
+                            for word in tokenized_validated_prefix: 
+                                tok_word = tokenize_f(word).split()
+                                for subword in tok_word:
+                                    fixed_words_user[pos] = word2index_y.get(subword, unk_id)
+                                    if word2index_y.get(subword) is None:
+                                        unk_words_dict[pos] = subword
                                     pos += 1 
 
 
+                            # Obtain the list of possible words
                             if next_correction_pos < len(hypothesis):
                                 excluded_chars.append(hypothesis[next_correction_pos])
-                                print(excluded_chars)
-                                filtered_idx2word = fill_valid_next_words(pos=pos, word2index_y = word2index_y, last_word = last_word, wrong_chars = excluded_chars, bpe_separator=bpe_separator)
+                                filtered_idx2word = fill_valid_next_words(pos=pos, word2index_y=word2index_y, last_word=last_word, wrong_chars=excluded_chars, bpe_separator=bpe_separator)
                                 if filtered_idx2word is None:
                                     fixed_words_user[pos] = word2index_y.get(unk_id)
-                                    nk_words_dict[pos] = last_word
+                                    unk_words_dict[pos] = last_word
                             else:
                                 filtered_idx2word = dict()
                             
-                            logger.debug(u'to character %d.' % ( next_correction_pos))  
-                            logger.debug([index2word_y[w] for w in fixed_words_user.values()])                 
+
+                            logger.debug('Excluded Chars: {} to position {}'.format(excluded_chars, next_correction_pos))
+                            #logger.debug([index2word_y[w] for w in fixed_words_user.values()])
 
                         # 2.2.7 Generate a hypothesis compatible with the feedback provided by the user
                         hypothesis = generate_constrained_hypothesis(beam_searcher=interactive_beam_searcher, 
@@ -618,13 +629,9 @@ def interactive_simulation():
                         hypothesis = u' '.join(hypothesis)  # Hypothesis is unicode
                         hypothesis = params_prediction['detokenize_f'](hypothesis) \
                             if args.detokenize_bpe else hypothesis
+                        logger.debug('')
                         logger.debug(u'Target: %s' % reference)
                         logger.debug(u"Hypo_%d: %s" % (hypothesis_number, hypothesis))
-                        # 2.2.8 Add a keystroke
-                        errors_sentence += 1
-                        # 2.2.9 Add a mouse action if we moved the pointer
-                        if next_correction_pos - last_correct_pos > 1:
-                            mouse_actions_sentence += 1
                         last_correct_pos = next_correction_pos
 
                     # 2.3 Final check: The reference is a subset of the hypothesis: Cut the hypothesis
@@ -644,8 +651,9 @@ def interactive_simulation():
                 # 3. Update user effort counters
                 mouse_actions_sentence += 1  # This +1 is the validation action
                 chars_sentence = len(hypothesis)
+                words_sentence = len(hypothesis.split())
                 total_errors += errors_sentence
-                total_words += len(hypothesis.split())
+                total_words += words_sentence
                 total_chars += chars_sentence
                 total_mouse_actions += mouse_actions_sentence
 
@@ -653,6 +661,7 @@ def interactive_simulation():
                 logger.debug(u"Final hypotesis: %s" % hypothesis)
                 logger.debug(u"%d errors. "
                              u"Sentence WSR: %4f. "
+                             u"Sentence WSR_c: %4f. "
                              u"Sentence mouse strokes: %d "
                              u"Sentence MAR: %4f. "
                              u"Sentence MAR_c: %4f. "
@@ -663,9 +672,10 @@ def interactive_simulation():
                              u"MAR_c: %4f. "
                              u"KSMR: %4f.\n\n\n\n" %
                              (errors_sentence,
-                              float(errors_sentence) / len(hypothesis),
+                              float(errors_sentence) / words_sentence,
+                              float(errors_sentence) / chars_sentence,
                               mouse_actions_sentence,
-                              float(mouse_actions_sentence) / len(hypothesis),
+                              float(mouse_actions_sentence) / words_sentence,
                               float(mouse_actions_sentence) / chars_sentence,
                               float(errors_sentence + mouse_actions_sentence) / chars_sentence,
                               float(total_errors) / total_words,
@@ -709,12 +719,17 @@ def interactive_simulation():
                     logger.info(u"%d sentences processed" % (n_line + 1))
                     logger.info(u"Current speed is {} per sentence".format((time.time() - start_time) / (n_line + 1)))
                     logger.info(u"Current WSR is: %f" % (float(total_errors) / total_words))
+                    logger.info(u"Current WSR_c is: %f" % (float(total_errors) / total_chars))
                     logger.info(u"Current MAR is: %f" % (float(total_mouse_actions) / total_words))
                     logger.info(u"Current MAR_c is: %f" % (float(total_mouse_actions) / total_chars))
                     logger.info(u"Current KSMR is: %f" % (float(total_errors + total_mouse_actions) / total_chars))
         # 6. Final!
-        print (u"MAR_c: %f" % (float(total_mouse_actions) / total_chars))
-        print (u"KSMR: %f" % (float(total_errors + total_mouse_actions) / total_chars))
+        print (u"Total number of corrections:", total_errors)
+        print (u"WSR: %f"    % (float(total_errors) / total_words))
+        print (u"WSR_c: %f"  % (float(total_errors) / total_chars))
+        print (u"MAR: %f"    % (float(total_errors) / total_words))
+        print (u"MAR_c: %f"  % (float(total_mouse_actions) / total_chars))
+        print (u"KSMR: %f"   % (float(total_errors + total_mouse_actions) / total_chars))
         # 6.2 Close open files
         fsrc.close()
         ftrans.close()
