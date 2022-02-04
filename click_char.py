@@ -732,8 +732,8 @@ def interactive_simulation():
         print (u"MAR_c: %f"  % (float(total_mouse_actions) / total_chars))
         print (u"KSMR: %f"   % (float(total_errors + total_mouse_actions) / total_chars))
 
-        logger.info(u"Total number of corrections:", total_errors)
-        logger.info(u"Total number of mouse actions:", total_mouse_actions) 
+        logger.info(u"Total number of corrections:", float(total_errors))
+        logger.info(u"Total number of mouse actions:", float(total_mouse_actions)) 
         logger.info(u"WSR: %f"    % (float(total_errors) / total_words))
         logger.info(u"WSR_c: %f"  % (float(total_errors) / total_chars))
         logger.info(u"MAR: %f"    % (float(total_mouse_actions) / total_words))
