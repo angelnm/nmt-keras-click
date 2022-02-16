@@ -6,16 +6,16 @@ def load_parameters():
     """
 
     # Input data params
-    TASK_NAME = 'EU'                           # Task name.
+    TASK_NAME = 'Europarl'                           # Task name.
     DATASET_NAME = TASK_NAME                        # Dataset name.
     SRC_LAN = 'es'                                  # Language of the source text.
     TRG_LAN = 'en'                                  # Language of the target text.
-    DATA_ROOT_PATH ='../%s/preraw/' % DATASET_NAME  # Path where data is stored.
+    DATA_ROOT_PATH ='datasets/'  # Path where data is stored.
 
     # SRC_LAN or TRG_LAN will be added to the file names.
-    TEXT_FILES = {'train': 'trn/es-en/tr.',             # Data files.
-                  'val':   'dev/es-en/dev.',
-                  'test':  'tst/es-en/test.'}
+    TEXT_FILES = {'train': 'trn/de-en/trn.',             # Data files.
+                  'val':   'dev/de-en/dev.',
+                  'test':  'tst/de-en/tst.'}
 
     GLOSSARY = None                               # Glossary location. If not None, it overwrites translations according to this glossary file
 
@@ -83,7 +83,7 @@ def load_parameters():
     # Word representation params
     TOKENIZATION_METHOD = 'tokenize_none'         # Select which tokenization we'll apply.
                                                   # See Dataset class (from stager_keras_wrapper) for more info.
-    BPE_CODES_PATH = DATA_ROOT_PATH + '/trn/es-en/bpe.joint'    # If TOKENIZATION_METHOD = 'tokenize_bpe', # sets the path to the learned BPE codes.
+    BPE_CODES_PATH = DATA_ROOT_PATH + '/trn/es-en/training_codes.joint'    # If TOKENIZATION_METHOD = 'tokenize_bpe', # sets the path to the learned BPE codes.
     DETOKENIZATION_METHOD = 'detokenize_bpe'     # Select which de-tokenization method we'll apply.
 
     APPLY_DETOKENIZATION = True                  # Wheter we apply a detokenization method.
@@ -123,7 +123,7 @@ def load_parameters():
 
     OPTIMIZER = 'Adam'                            # Optimizer. Supported optimizers: SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nadam.
     LR = 0.0002                                    # Learning rate. Recommended values - Adam 0.0002 - Adadelta 1.0.
-    CLIP_C = 5.                                   # During training, clip L2 norm of gradients to this value (0. means deactivated).
+    CLIP_C = 10.                                   # During training, clip L2 norm of gradients to this value (0. means deactivated).
     CLIP_V = 0.                                   # During training, clip absolute value of gradients to this value (0. means deactivated).
     USE_TF_OPTIMIZER = True                       # Use native Tensorflow's optimizer (only for the Tensorflow backend).
 
@@ -159,7 +159,7 @@ def load_parameters():
 
     # Training parameters
     MAX_EPOCH = 500                               # Stop when computed this number of epochs.
-    BATCH_SIZE = 50                               # Size of each minibatch.
+    BATCH_SIZE = 30                               # Size of each minibatch.
     N_GPUS = 1                                    # Number of GPUs to use. Only for Tensorflow backend. Each GPU will receive mini-batches of BATCH_SIZE / N_GPUS.
 
     HOMOGENEOUS_BATCHES = False                   # Use batches with homogeneous output lengths (Dangerous!!).
@@ -177,7 +177,7 @@ def load_parameters():
     MIN_DELTA = 0.                                # Minimum change in the monitored quantity to consider it as an improvement.
 
     # Model parameters
-    MODEL_TYPE = 'AttentionRNNEncoderDecoder'     # Model to train. See model_zoo.py for more info.
+    MODEL_TYPE = 'Transformer'                    # Model to train. See model_zoo.py for more info.
                                                   # Supported architectures: 'AttentionRNNEncoderDecoder' and 'Transformer'.
 
     # Common hyperparameters for all models
@@ -202,13 +202,13 @@ def load_parameters():
                                                   # When using pretrained word embeddings, the size of the pretrained word embeddings must match with the word embeddings size.
     TRG_PRETRAINED_VECTORS_TRAINABLE = True       # Finetune or not the target word embedding vectors.
 
-    SCALE_SOURCE_WORD_EMBEDDINGS = False          # Scale source word embeddings by Sqrt(SOURCE_TEXT_EMBEDDING_SIZE).
-    SCALE_TARGET_WORD_EMBEDDINGS = False          # Scale target word embeddings by Sqrt(TARGET_TEXT_EMBEDDING_SIZE).
+    SCALE_SOURCE_WORD_EMBEDDINGS = True          # Scale source word embeddings by Sqrt(SOURCE_TEXT_EMBEDDING_SIZE).
+    SCALE_TARGET_WORD_EMBEDDINGS = True          # Scale target word embeddings by Sqrt(TARGET_TEXT_EMBEDDING_SIZE).
 
     TIE_EMBEDDINGS = False                        # Use the same embeddings for source and target language.
 
-    N_LAYERS_ENCODER = 1                          # Stack this number of encoding layers.
-    N_LAYERS_DECODER = 1                          # Stack this number of decoding layers.
+    N_LAYERS_ENCODER = 4                          # Stack this number of encoding layers.
+    N_LAYERS_DECODER = 4                          # Stack this number of decoding layers.
 
     # Additional Fully-Connected layers applied before softmax.
     #       Here we should specify the activation function and the output dimension.
@@ -249,7 +249,7 @@ def load_parameters():
     # Transformer model hyperparameters
     # # # # # # # # # # # # # # # # # # # # # # # #
     MODEL_SIZE = 512                               # Transformer model size (d_{model} in de paper).
-    MULTIHEAD_ATTENTION_ACTIVATION = 'linear'     # Activation the input projections in the Multi-Head Attention blocks.
+    MULTIHEAD_ATTENTION_ACTIVATION = 'relu'     # Activation the input projections in the Multi-Head Attention blocks.
     FF_SIZE = MODEL_SIZE * 4                      # Size of the feed-forward layers of the Transformer model.
     N_HEADS = 8                                   # Number of parallel attention layers of the Transformer model.
     # # # # # # # # # # # # # # # # # # # # # # # #

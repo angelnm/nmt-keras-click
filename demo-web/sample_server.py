@@ -40,6 +40,7 @@ class NMTHandler(BaseHTTPRequestHandler):
         args = args.split('&')
         source_sentence = None
         validated_prefix = None
+        excluded_words = None
         learn = False
         beam_size = 6
         length_norm = 0.
@@ -55,6 +56,10 @@ class NMTHandler(BaseHTTPRequestHandler):
             if cc[0] == 'prefix':
                 validated_prefix = cc[1]
                 validated_prefix = urllib.parse.unquote_plus(validated_prefix)
+
+            if cc[0] == 'excluded':
+                excluded_words = cc[1]
+                excluded_words = urllib.parse.unquote_plus(excluded_words).split()
 
             if cc[0] == 'learn':
                 learn = cc[1]
@@ -97,7 +102,7 @@ class NMTHandler(BaseHTTPRequestHandler):
             self.server.sampler.learn_from_sample(source_sentence, validated_prefix)
             self.send_response(200)  # 200: ('OK', 'Request fulfilled, document follows')
         else:
-            hypothesis = self.server.sampler.generate_sample(source_sentence, validated_prefix=validated_prefix)
+            hypothesis = self.server.sampler.generate_sample(source_sentence, validated_prefix=validated_prefix, excluded_words=excluded_words)
             response = hypothesis + u'\n'
             generate_sample_end_time = time.time()
             logger.log(2, 'args_processing time: %.6f' % (generate_sample_end_time - generate_sample_start_time))
@@ -209,7 +214,7 @@ class NMTSampler:
             self.online_trainer = None
 
     def generate_sample(self, source_sentence, validated_prefix=None, max_N=5, isle_indices=None,
-                        filtered_idx2word=None, unk_indices=None, unk_words=None):
+                        filtered_idx2word=None, unk_indices=None, unk_words=None, excluded_words=None):
         """
         Generate sample via constrained search. Options labeled with <<isles>> are untested
         and likely require some modifications to correctly work.
@@ -250,11 +255,13 @@ class NMTSampler:
 
         fixed_words_user = OrderedDict()
         unk_words_dict = OrderedDict()
+        wrong_words = dict()
         # If the user provided some feedback...
         if validated_prefix is not None:
-            next_correction = validated_prefix[-1]
-            if next_correction == self.eos_symbol:
-                return validated_prefix[:-1].decode('utf-8')
+            if validated_prefix is not '':
+                next_correction = validated_prefix[-1]
+                if next_correction == self.eos_symbol:
+                    return validated_prefix[:-1].decode('utf-8')
 
             # 2.2.4 Tokenize the prefix properly (possibly applying BPE)
             #  TODO: Here we are tokenizing the target language with the source language tokenizer
@@ -266,7 +273,8 @@ class NMTSampler:
 
             # 2.2.5 Validate words
             word_validation_start_time = time.time()
-            for pos, word in enumerate(tokenized_validated_prefix.split()):
+            prefix_tokens = tokenized_validated_prefix.split()
+            for pos, word in enumerate(prefix_tokens):
                 fixed_words_user[pos] = self.word2index_y.get(word, self.unk_id)
                 if self.word2index_y.get(word) is None:
                     unk_words_dict[pos] = word
@@ -275,18 +283,29 @@ class NMTSampler:
 
             # 2.2.6 Constrain search for the last word
             constrain_search_start_time = time.time()
-            last_user_word_pos = list(fixed_words_user.keys())[-1]
-            if next_correction != u' ':
-                last_user_word = tokenized_validated_prefix.split()[-1]
-                filtered_idx2word = dict((self.word2index_y[candidate_word], candidate_word)
-                                         for candidate_word in self.word2index_y if candidate_word[:len(last_user_word)] == last_user_word)
+            if excluded_words is not None:
+                pos = len(prefix_tokens)
+                for w_word in excluded_words:
+                    last_word = -1
+                    w_tok_word = self.general_tokenize_f(w_word).split()
+                    for w_idx, w_tok in enumerate(w_tok_word):
+                        if wrong_words.get(pos+w_idx) == None:
+                            wrong_words[pos+w_idx] = dict()
+                        ww_list = wrong_words.get(pos+w_idx)
 
-                if filtered_idx2word != dict():
-                    del fixed_words_user[last_user_word_pos]
-                    if last_user_word_pos in list(unk_words_dict.keys()):
-                        del unk_words_dict[last_user_word_pos]
-            else:
-                filtered_idx2word = dict()
+                        if ww_list.get(last_word) == None:
+                            ww_list[last_word] = []
+
+                        if w_tok in self.word2index_y:
+                            w_tok = self.word2index_y[w_tok]
+                            ww_list[last_word].append(w_tok)
+                            last_word = w_tok
+                        else:
+                            continue
+
+
+
+
             constrain_search_end_time = time.time()
             logger.log(2, 'constrain_search_end_time time: %.6f' % (constrain_search_end_time - constrain_search_start_time))
 
@@ -296,7 +315,8 @@ class NMTSampler:
                                                                           fixed_words=copy.copy(fixed_words_user),
                                                                           max_N=max_N,
                                                                           isles=isle_indices,
-                                                                          valid_next_words=filtered_idx2word,
+                                                                          #valid_next_words=filtered_idx2word,
+                                                                          excluded_words=wrong_words, #{1:{-1:[self.word2index_y['choices']]}},
                                                                           idx2word=self.index2word_y)
         sample_beam_search_end_time = time.time()
         logger.log(2, 'sample_beam_search time: %.6f' % (sample_beam_search_end_time - sample_beam_search_start_time))
